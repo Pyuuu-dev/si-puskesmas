@@ -113,6 +113,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/jam-kerja', [SettingController::class, 'updateJamKerja'])
         ->middleware('role:super_admin')
         ->name('settings.jam-kerja.update');
+    Route::post('/settings/telegram/test', [SettingController::class, 'testTelegram'])
+        ->middleware('role:super_admin')
+        ->name('settings.telegram.test');
+    Route::post('/settings/telegram/backup', [SettingController::class, 'backupNow'])
+        ->middleware('role:super_admin')
+        ->name('settings.telegram.backup');
 
     // Tanggal Libur & Info Tanggal Management
     Route::post('/tanggal-libur', [\App\Http\Controllers\TanggalLiburController::class, 'store'])

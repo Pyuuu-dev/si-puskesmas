@@ -53,7 +53,54 @@
                             <label for="email_instansi" class="block text-sm font-medium text-gray-700 mb-1">Email Instansi</label>
                             <input type="email" id="email_instansi" name="email_instansi" value="{{ old('email_instansi', $settings['email_instansi']) }}"
                                    class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="info@puskesmas.go.id">
-                        </div>
+                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Telegram Bot Configuration --}}
+            <div class="border-t border-gray-200 pt-6">
+                <h3 class="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                    </svg>
+                    Telegram Backup Bot
+                </h3>
+                <p class="text-xs text-gray-500 mb-4">Konfigurasi bot Telegram untuk backup database otomatis 3x sehari (08:00, 14:00, 20:00 WITA)</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="telegram_bot_token" class="block text-sm font-medium text-gray-700 mb-1">
+                            Bot Token
+                            <a href="https://t.me/BotFather" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-700 ml-1">(Dapatkan dari @BotFather)</a>
+                        </label>
+                        <input type="text" id="telegram_bot_token" name="telegram_bot_token" 
+                               value="{{ old('telegram_bot_token', $settings['telegram_bot_token']) }}"
+                               class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono" 
+                               placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                    </div>
+                    <div>
+                        <label for="telegram_chat_id" class="block text-sm font-medium text-gray-700 mb-1">
+                            Chat ID
+                            <a href="https://t.me/userinfobot" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-700 ml-1">(Dapatkan dari @userinfobot)</a>
+                        </label>
+                        <input type="text" id="telegram_chat_id" name="telegram_chat_id" 
+                               value="{{ old('telegram_chat_id', $settings['telegram_chat_id']) }}"
+                               class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono" 
+                               placeholder="123456789">
+                    </div>
+                    
+                    <div class="p-3 bg-amber-50 rounded-lg text-xs text-amber-700 border border-amber-200">
+                        <strong>📖 Panduan Setup:</strong>
+                        <ol class="mt-1 space-y-0.5 list-decimal list-inside">
+                            <li>Buat bot baru di Telegram dengan <a href="https://t.me/BotFather" target="_blank" class="underline">@BotFather</a></li>
+                            <li>Salin Bot Token yang diberikan</li>
+                            <li>Dapatkan Chat ID Anda dari <a href="https://t.me/userinfobot" target="_blank" class="underline">@userinfobot</a></li>
+                            <li>Kirim pesan /start ke bot Anda</li>
+                            <li>Isi form di atas dan klik "Simpan Pengaturan"</li>
+                            <li>Gunakan tombol "Test Koneksi" untuk memverifikasi</li>
+                        </ol>
+                        <p class="mt-2">Lihat panduan lengkap di <code class="bg-amber-100 px-1 rounded">TELEGRAM_BACKUP_SETUP.md</code></p>
                     </div>
                 </div>
             </div>
@@ -69,6 +116,46 @@
             </button>
         </div>
     </form>
+
+    {{-- Telegram Bot Actions --}}
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden" x-data="telegramManager()">
+        <div class="p-6">
+            <h3 class="text-base font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 12h.008v.008H12V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                </svg>
+                Telegram Bot Actions
+            </h3>
+            <p class="text-xs text-gray-500 mb-4">Test koneksi dan backup manual database ke Telegram</p>
+
+            <div class="flex flex-wrap gap-3">
+                <button @click="testConnection()" :disabled="testing" 
+                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 12h.008v.008H12V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                    </svg>
+                    <span x-text="testing ? 'Testing...' : 'Test Koneksi'"></span>
+                </button>
+
+                <button @click="backupNow()" :disabled="backing" 
+                        class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+                    </svg>
+                    <span x-text="backing ? 'Backing up...' : 'Backup Sekarang'"></span>
+                </button>
+            </div>
+
+            <div class="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-600">
+                <strong>ℹ️ Informasi:</strong>
+                <ul class="mt-1 space-y-0.5 list-disc list-inside">
+                    <li><strong>Test Koneksi:</strong> Mengirim pesan test ke Telegram untuk memverifikasi konfigurasi</li>
+                    <li><strong>Backup Sekarang:</strong> Mengirim file backup database ke Telegram secara manual</li>
+                    <li><strong>Backup Otomatis:</strong> Berjalan 3x sehari pada jam 08:00, 14:00, dan 20:00 WITA</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
     {{-- Jam Kerja Section --}}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden" x-data="jamKerjaManager()">
@@ -146,6 +233,72 @@
 @section('scripts')
 <script>
 document.addEventListener('alpine:init', () => {
+    Alpine.data('telegramManager', () => ({
+        testing: false,
+        backing: false,
+
+        async testConnection() {
+            if (this.testing) return;
+            
+            const botToken = document.getElementById('telegram_bot_token').value;
+            const chatId = document.getElementById('telegram_chat_id').value;
+
+            if (!botToken || !chatId) {
+                window.toast('Harap isi Bot Token dan Chat ID terlebih dahulu', 'error');
+                return;
+            }
+
+            this.testing = true;
+
+            try {
+                const res = await window.api.post('/settings/telegram/test', {
+                    bot_token: botToken,
+                    chat_id: chatId
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    window.toast(data.message, 'success');
+                } else {
+                    window.toast(data.message || 'Test koneksi gagal', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan saat test koneksi', 'error');
+            }
+            
+            this.testing = false;
+        },
+
+        async backupNow() {
+            if (this.backing) return;
+            
+            const botToken = document.getElementById('telegram_bot_token').value;
+            const chatId = document.getElementById('telegram_chat_id').value;
+
+            if (!botToken || !chatId) {
+                window.toast('Harap simpan konfigurasi Telegram terlebih dahulu', 'error');
+                return;
+            }
+
+            this.backing = true;
+
+            try {
+                const res = await window.api.post('/settings/telegram/backup');
+                const data = await res.json();
+                
+                if (data.success) {
+                    window.toast(data.message, 'success');
+                } else {
+                    window.toast(data.message || 'Backup gagal', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan saat backup', 'error');
+            }
+            
+            this.backing = false;
+        }
+    }));
+
     Alpine.data('jamKerjaManager', () => ({
         saving: false,
         jamKerja: @json($jamKerja),

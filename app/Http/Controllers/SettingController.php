@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\JamKerja;
 use App\Models\Setting;
+use App\Services\TelegramBackupService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 
 class SettingController extends Controller
 {
@@ -15,6 +17,8 @@ class SettingController extends Controller
             'alamat' => Setting::get('alamat', ''),
             'telepon' => Setting::get('telepon', ''),
             'email_instansi' => Setting::get('email_instansi', ''),
+            'telegram_bot_token' => Setting::get('telegram_bot_token', ''),
+            'telegram_chat_id' => Setting::get('telegram_chat_id', ''),
         ];
 
         $order = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
@@ -32,6 +36,8 @@ class SettingController extends Controller
             'alamat' => 'nullable|string|max:500',
             'telepon' => 'nullable|string|max:20',
             'email_instansi' => 'nullable|email|max:255',
+            'telegram_bot_token' => 'nullable|string|max:255',
+            'telegram_chat_id' => 'nullable|string|max:255',
         ]);
 
         foreach ($validated as $key => $value) {
@@ -62,5 +68,55 @@ class SettingController extends Controller
         }
 
         return response()->json(['success' => true, 'message' => 'Jam kerja berhasil diperbarui.']);
+    }
+
+    public function testTelegram(Request $request)
+    {
+        $botToken = $request->input('bot_token');
+        $chatId = $request->input('chat_id');
+
+        if (!$botToken || !$chatId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bot Token dan Chat ID harus diisi.'
+            ], 422);
+        }
+
+        // Temporarily set config
+        config(['services.telegram.bot_token' => $botToken]);
+        config(['services.telegram.chat_id' => $chatId]);
+
+        $telegram = new TelegramBackupService();
+        $result = $telegram->sendMessage('✅ Test koneksi berhasil! Bot Telegram sudah terhubung dengan SI Puskesmas.');
+
+        if ($result) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Koneksi berhasil! Pesan test telah dikirim ke Telegram.'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal mengirim pesan. Periksa Bot Token dan Chat ID Anda.'
+        ], 422);
+    }
+
+    public function backupNow()
+    {
+        try {
+            Artisan::call('backup:telegram');
+            $output = Artisan::output();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Backup database berhasil dikirim ke Telegram!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan backup: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -74,7 +74,7 @@
                 <tbody class="divide-y divide-gray-100" id="pegawai-tbody">
                     @forelse($pegawai as $i => $p)
                         <tr class="hover:bg-gray-50" id="pegawai-row-{{ $p->id }}">
-                            <td class="px-4 py-3 text-gray-500">{{ $pegawai->firstItem() + $i }}</td>
+                            <td class="px-4 py-3 text-gray-500">{{ ($pegawai->currentPage() - 1) * $pegawai->perPage() + $i + 1 }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
                                     <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">

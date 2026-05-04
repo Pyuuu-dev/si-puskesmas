@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Setting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -13,8 +14,9 @@ class TelegramBackupService
 
     public function __construct()
     {
-        $this->botToken = config('services.telegram.bot_token');
-        $this->chatId = config('services.telegram.chat_id');
+        // Try to get from database settings first, fallback to config
+        $this->botToken = Setting::get('telegram_bot_token') ?: config('services.telegram.bot_token');
+        $this->chatId = Setting::get('telegram_chat_id') ?: config('services.telegram.chat_id');
     }
 
     /**
