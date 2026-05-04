@@ -28,7 +28,7 @@
 
     {{-- Search Bar --}}
     <div class="bg-white rounded-xl border border-gray-200 p-4">
-        <form method="GET" action="{{ route('pegawai.index') }}" class="flex gap-2">
+        <form method="GET" action="{{ route('pegawai') }}" class="flex gap-2">
             <div class="flex-1 relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -45,7 +45,7 @@
                 Cari
             </button>
             @if($search)
-            <a href="{{ route('pegawai.index') }}" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
+            <a href="{{ route('pegawai') }}" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
                 Reset
             </a>
             @endif
