@@ -211,6 +211,33 @@
                         </tr>
                     @endforeach
                 </tbody>
+                <tfoot>
+                    <tr class="bg-gray-50 border-t-2 border-gray-300">
+                        <th class="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-700 min-w-[180px] border-r border-gray-200" rowspan="2">
+                            Nama Pegawai
+                        </th>
+                        <th class="px-2 py-1 text-center font-semibold text-gray-700 border-r border-gray-200" rowspan="2">
+                            Penempatan
+                        </th>
+                        @foreach($dates as $date)
+                            @php
+                                $isSunday = $date['day_of_week'] === 0;
+                                $namaHariFull = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][$date['day_of_week']] ?? '';
+                            @endphp
+                            <th colspan="2" class="px-0 py-1.5 text-center font-semibold border-r border-gray-200 {{ $isSunday ? 'bg-red-50 text-red-600' : 'text-gray-700' }}">
+                                <div>{{ $date['hari'] }}</div>
+                                <div class="text-[10px] font-normal text-gray-400">{{ $namaHariFull }}</div>
+                            </th>
+                        @endforeach
+                    </tr>
+                    <tr class="bg-gray-50 border-b border-gray-200">
+                        @foreach($dates as $date)
+                            @php $isSunday = $date['day_of_week'] === 0; @endphp
+                            <th class="px-1 py-1 text-center font-medium border-r border-gray-100 {{ $isSunday ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:42px;">Masuk</th>
+                            <th class="px-1 py-1 text-center font-medium border-r border-gray-200 {{ $isSunday ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:42px;">Pulang</th>
+                        @endforeach
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>

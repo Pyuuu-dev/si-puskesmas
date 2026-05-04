@@ -210,6 +210,44 @@
                         </tr>
                     @endforeach
                 </tbody>
+                <tfoot>
+                    {{-- Location/Info row bottom - vertical text --}}
+                    <tr class="bg-indigo-50 border-t-2 border-indigo-200">
+                        <th class="sticky left-0 z-20 bg-indigo-50 px-3 py-1 text-left font-medium text-indigo-600 min-w-[180px] border-r border-indigo-100 text-[10px]">
+                            Lokasi
+                        </th>
+                        @foreach($dates as $date)
+                            <th class="px-0 py-1 text-center border-r border-indigo-100 {{ $date['is_weekend'] ? 'bg-red-50' : '' }}" style="min-width:36px;">
+                                @if($date['lokasi'])
+                                    <div class="flex items-center justify-center h-20 group relative cursor-pointer" 
+                                         onclick="showLokasiModal('{{ $date['tanggal'] }}', {{ json_encode($date['lokasi_list']) }})"
+                                         title="Klik untuk kelola lokasi">
+                                        <span class="text-[10px] text-indigo-700 font-semibold leading-tight capitalize" style="writing-mode: vertical-rl; transform: rotate(180deg);">{{ $date['lokasi'] }}</span>
+                                        <div class="absolute inset-0 bg-indigo-100 opacity-0 group-hover:opacity-30 transition-opacity"></div>
+                                    </div>
+                                @else
+                                    <div class="h-3"></div>
+                                @endif
+                            </th>
+                        @endforeach
+                        <th class="px-3 py-1 bg-indigo-50"></th>
+                    </tr>
+                    {{-- Date row with full day names bottom --}}
+                    <tr class="bg-gray-50 border-b border-gray-200">
+                        <th class="sticky left-0 z-20 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-700 min-w-[180px] border-r border-gray-200">
+                            Nama Pegawai
+                        </th>
+                        @foreach($dates as $date)
+                            <th class="px-0 py-1.5 text-center font-semibold border-r border-gray-200 {{ $date['is_weekend'] ? 'bg-red-50 text-red-600' : 'text-gray-700' }}" style="min-width:36px;" title="{{ $date['keterangan_libur'] ?? '' }}">
+                                <div>{{ $date['hari'] }}</div>
+                                <div class="text-[10px] font-normal text-gray-400">{{ $date['nama_hari'] }}</div>
+                            </th>
+                        @endforeach
+                        <th class="px-3 py-2.5 text-center font-semibold text-gray-700 bg-gray-100 border-l-2 border-gray-300">
+                            Total
+                        </th>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>
