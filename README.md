@@ -1,59 +1,251 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SI Puskesmas - Sistem Informasi Puskesmas
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan dinas, dan kegiatan harian.
 
-## About Laravel
+## 🚀 Fitur Utama
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### 1. Manajemen Pegawai
+- ✅ CRUD pegawai dengan data lengkap (NIP, pangkat, jabatan, dll)
+- ✅ Import/Export data pegawai via CSV
+- ✅ Pencarian dan pagination
+- ✅ Sorting otomatis berdasarkan jabatan (Kepala → Dokter → Bidan → Perawat → Medis → PTT BLUD)
+- ✅ Role-based access (Super Admin, Kepala, Pegawai)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 2. Absensi
+- ✅ Absensi harian dengan 3 slot waktu (Pagi, Siang, Sore)
+- ✅ Status: Hadir, Izin, Sakit, Cuti, Dinas, Alpa
+- ✅ Konversi waktu otomatis (WIT/WITA/WIB)
+- ✅ Keterangan tambahan per absensi
+- ✅ Admin (super_admin) tidak muncul di daftar absensi
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 3. Perjalanan Dinas
+- ✅ Pencatatan perjalanan dinas pegawai
+- ✅ Integrasi dengan kode kegiatan
+- ✅ Tracking lokasi dan keterangan lengkap
+- ✅ Filter dan sorting berdasarkan urutan jabatan
+- ✅ Admin (super_admin) tidak muncul di daftar dinas
 
-## Learning Laravel
+### 4. Hasil Absensi
+- ✅ Rekap absensi per tanggal
+- ✅ Tampilan waktu asli dan waktu terkonversi
+- ✅ Export data hasil absensi
+- ✅ Filter berdasarkan tanggal
+- ✅ Sorting berdasarkan urutan jabatan
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### 5. Kode Kegiatan
+- ✅ Manajemen menu kegiatan (dengan warna)
+- ✅ Rincian menu per kegiatan
+- ✅ Kegiatan dengan kode dan anggaran
+- ✅ Struktur hierarki: Menu → Rincian → Kegiatan
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 6. Kalender Publik
+- ✅ Tampilan kalender kegiatan bulanan
+- ✅ Info lokasi posyandu per tanggal
+- ✅ Badge kegiatan dengan warna
+- ✅ Informasi tanggal libur
+- ✅ **Ringkasan kehadiran**: Jumlah pegawai yang sudah/belum absen per hari
+- ✅ Akses publik tanpa login
 
-## Laravel Sponsors
+### 7. Telegram Backup Bot
+- ✅ Backup database otomatis 3x sehari (08:00, 14:00, 20:00 WITA)
+- ✅ Backup manual via command `php artisan backup:telegram`
+- ✅ File backup dikirim langsung ke Telegram
+- ✅ Timestamp otomatis pada nama file
+- ✅ Cleanup otomatis setelah backup terkirim
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 8. Pengaturan
+- ✅ Konfigurasi nama instansi
+- ✅ Pengaturan jam kerja (3 slot)
+- ✅ Manajemen tanggal libur
+- ✅ Info tanggal (lokasi posyandu, dll)
 
-### Premium Partners
+## 🛠️ Tech Stack
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- **Framework**: Laravel 12
+- **PHP**: 8.2+
+- **Database**: SQLite
+- **Frontend**: Tailwind CSS 4, Alpine.js 3
+- **Icons**: Heroicons
 
-## Contributing
+## 📋 Requirements
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- PHP 8.2 atau lebih tinggi
+- Composer
+- Node.js & NPM
+- SQLite3
 
-## Code of Conduct
+## 🔧 Instalasi
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 1. Clone Repository
 
-## Security Vulnerabilities
+```bash
+git clone https://github.com/Pyuuu-dev/si-puskesmas.git
+cd si-puskesmas
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 2. Install Dependencies
 
-## License
+```bash
+composer install
+npm install
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 3. Setup Environment
+
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+### 4. Setup Database
+
+```bash
+touch database/database.sqlite
+php artisan migrate --seed
+```
+
+### 5. Build Assets
+
+```bash
+npm run build
+# atau untuk development
+npm run dev
+```
+
+### 6. Setup Telegram Bot (Opsional)
+
+Lihat panduan lengkap di [TELEGRAM_BACKUP_SETUP.md](TELEGRAM_BACKUP_SETUP.md)
+
+```env
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
+```
+
+### 7. Setup Cron Job (untuk backup otomatis)
+
+```bash
+* * * * * cd /path/to/si-puskesmas && php artisan schedule:run >> /dev/null 2>&1
+```
+
+### 8. Jalankan Server
+
+```bash
+php artisan serve
+```
+
+Akses aplikasi di `http://localhost:8000`
+
+## 👤 Default Login
+
+Setelah seeding, gunakan kredensial berikut:
+
+- **Email**: admin@puskesmas.id
+- **Password**: password
+
+⚠️ **PENTING**: Segera ubah password default setelah login pertama kali!
+
+## 📁 Struktur Database
+
+### Users
+- Data pegawai lengkap dengan NIP, pangkat, jabatan
+- Field `urutan` untuk sorting otomatis
+- Role: super_admin, kepala, pegawai
+
+### Absensi
+- 3 slot waktu per hari
+- Multiple status (hadir, izin, sakit, cuti, dinas, alpa)
+- Jam dan keterangan per absensi
+
+### Perjalanan Dinas
+- Relasi ke user dan kegiatan
+- Lokasi dan keterangan lengkap
+
+### Kegiatan
+- Hierarki: MenuKegiatan → RincianMenu → Kegiatan
+- Kode kegiatan dan anggaran
+
+### Settings
+- Key-value storage untuk konfigurasi
+- Jam kerja (3 slot)
+
+### Tanggal Libur
+- Tanggal dan keterangan libur
+
+### Info Tanggal
+- Multiple info per tanggal (lokasi posyandu, dll)
+
+## 🎨 Fitur UI/UX
+
+- Responsive design (mobile-friendly)
+- Toast notifications (5 detik)
+- Modal dialogs dengan Alpine.js
+- Color-coded badges untuk status
+- Sorting dan filtering otomatis
+- Pagination dengan info jumlah data
+
+## 📝 Command Artisan
+
+```bash
+# Backup database ke Telegram
+php artisan backup:telegram
+
+# Lihat daftar scheduled tasks
+php artisan schedule:list
+
+# Jalankan scheduled tasks secara manual
+php artisan schedule:run
+```
+
+## 🔐 Keamanan
+
+- Password hashing dengan bcrypt
+- CSRF protection
+- Role-based middleware
+- Input validation
+- SQL injection protection (Eloquent ORM)
+- XSS protection
+
+## 📊 Sorting Pegawai
+
+Pegawai diurutkan berdasarkan field `urutan`:
+- 1 = Kepala Puskesmas
+- 2 = Dokter
+- 3 = Bidan
+- 4 = Perawat
+- 5 = Tenaga Medis
+- 10 = PTT BLUD
+- 99 = Lainnya
+
+Jika urutan sama, diurutkan berdasarkan nama (A-Z).
+
+## 🚫 Exclusion Admin
+
+Admin dengan role `super_admin` tidak muncul di:
+- Daftar absensi
+- Daftar perjalanan dinas
+- Hasil absensi
+- Ringkasan kehadiran di kalender publik
+
+## 🌐 Public Routes
+
+- `/public/calendar` - Kalender kegiatan publik (tanpa login)
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome!
+
+## 📄 License
+
+This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## 👨‍💻 Developer
+
+Developed by Pyuuu-dev
+
+## 📞 Support
+
+Untuk pertanyaan atau bantuan, silakan buat issue di GitHub repository.
+
+---
+
+**Built with ❤️ using Laravel**
