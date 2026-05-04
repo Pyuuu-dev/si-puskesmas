@@ -73,11 +73,12 @@ class TanggalLiburController extends Controller
     public function destroyInfo(Request $request)
     {
         $validated = $request->validate([
-            'tanggal' => 'required|date',
+            'id' => 'required|integer|exists:info_tanggal,id',
         ]);
 
-        InfoTanggal::where('tanggal', $validated['tanggal'])->delete();
+        $info = InfoTanggal::findOrFail($validated['id']);
+        $info->delete();
 
-        return response()->json(['success' => true, 'message' => 'Info tanggal berhasil dihapus.']);
+        return response()->json(['success' => true, 'message' => 'Info lokasi berhasil dihapus.']);
     }
 }

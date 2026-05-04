@@ -63,8 +63,11 @@
                         @foreach($dates as $date)
                             <th class="px-0 py-1 text-center border-r border-indigo-100 {{ $date['is_weekend'] ? 'bg-red-50' : '' }}" style="min-width:36px;">
                                 @if($date['lokasi'])
-                                    <div class="flex items-center justify-center h-20" title="{{ $date['lokasi'] }}">
+                                    <div class="flex items-center justify-center h-20 group relative cursor-pointer" 
+                                         onclick="showLokasiModal('{{ $date['tanggal'] }}', {{ json_encode($date['lokasi_list']) }})"
+                                         title="Klik untuk kelola lokasi">
                                         <span class="text-[10px] text-indigo-700 font-semibold leading-tight capitalize" style="writing-mode: vertical-rl; transform: rotate(180deg);">{{ $date['lokasi'] }}</span>
+                                        <div class="absolute inset-0 bg-indigo-100 opacity-0 group-hover:opacity-30 transition-opacity"></div>
                                     </div>
                                 @else
                                     <div class="h-3"></div>
@@ -265,11 +268,65 @@
         </div>
     </div>
     @endif
+
+    {{-- Modal Kelola Lokasi --}}
+    <div x-data="lokasiModalManager()" x-show="showModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+        <div class="flex items-center justify-center min-h-screen px-4">
+            {{-- Overlay --}}
+            <div x-show="showModal" x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" 
+                 x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-150" 
+                 x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                 class="fixed inset-0 bg-gray-900/50" @click="showModal = false"></div>
+
+            {{-- Modal content --}}
+            <div x-show="showModal" x-transition:enter="ease-out duration-200" 
+                 x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                 x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" 
+                 x-transition:leave-end="opacity-0 scale-95"
+                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 z-10">
+
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Kelola Lokasi Posyandu</h3>
+                <p class="text-sm text-gray-500 mb-4">Tanggal: <span class="font-medium text-gray-700" x-text="selectedDate"></span></p>
+
+                <div class="space-y-2 max-h-64 overflow-y-auto">
+                    <template x-for="(lok, index) in lokasiList" :key="lok.id">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <span class="text-sm text-gray-700 capitalize" x-text="lok.lokasi"></span>
+                            <button @click="deleteLokasi(lok.id)" :disabled="deleting" 
+                                    class="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                            </button>
+                        </div>
+                    </template>
+                    <div x-show="lokasiList.length === 0" class="text-center py-4 text-sm text-gray-400">
+                        Tidak ada lokasi
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-6">
+                    <button @click="showModal = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
 @section('scripts')
 <script>
+// Global function to show lokasi modal
+window.showLokasiModal = function(tanggal, lokasiData) {
+    // Trigger Alpine component
+    const event = new CustomEvent('show-lokasi-modal', { 
+        detail: { tanggal, lokasiData } 
+    });
+    window.dispatchEvent(event);
+};
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('dinasCell', (config) => ({
         userId: config.userId,
@@ -373,6 +430,52 @@ document.addEventListener('alpine:init', () => {
                     window.toast(data.message || 'Gagal', 'error');
                 }
             } catch (e) { window.toast('Terjadi kesalahan', 'error'); }
+        }
+    }));
+
+    Alpine.data('lokasiModalManager', () => ({
+        showModal: false,
+        selectedDate: '',
+        lokasiList: [],
+        deleting: false,
+
+        init() {
+            window.addEventListener('show-lokasi-modal', (e) => {
+                this.showLokasiModal(e.detail.tanggal, e.detail.lokasiData);
+            });
+        },
+
+        showLokasiModal(tanggal, lokasiData) {
+            this.selectedDate = tanggal;
+            this.lokasiList = lokasiData || [];
+            this.showModal = true;
+        },
+
+        async deleteLokasi(id) {
+            if (this.deleting) return;
+            if (!confirm('Hapus lokasi ini?')) return;
+
+            this.deleting = true;
+            try {
+                const res = await window.api.delete('/info-tanggal', {
+                    id: id
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.toast(data.message, 'success');
+                    // Remove from list
+                    this.lokasiList = this.lokasiList.filter(l => l.id !== id);
+                    // Reload if no more locations
+                    if (this.lokasiList.length === 0) {
+                        setTimeout(() => location.reload(), 500);
+                    }
+                } else {
+                    window.toast(data.message || 'Gagal menghapus', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+            this.deleting = false;
         }
     }));
 });

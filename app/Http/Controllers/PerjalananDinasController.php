@@ -67,10 +67,15 @@ class PerjalananDinasController extends Controller
             $lokasiList = [];
             if (isset($infoTanggalRaw[$dateStr])) {
                 foreach ($infoTanggalRaw[$dateStr] as $info) {
-                    if ($info->lokasi) $lokasiList[] = $info->lokasi;
+                    if ($info->lokasi) {
+                        $lokasiList[] = [
+                            'id' => $info->id,
+                            'lokasi' => $info->lokasi,
+                        ];
+                    }
                 }
             }
-            $lokasi = !empty($lokasiList) ? implode(', ', $lokasiList) : null;
+            $lokasi = !empty($lokasiList) ? implode(', ', array_column($lokasiList, 'lokasi')) : null;
             $catatanInfo = isset($infoTanggalRaw[$dateStr]) ? $infoTanggalRaw[$dateStr]->first()->catatan : null;
 
             $dates[] = [
@@ -78,10 +83,10 @@ class PerjalananDinasController extends Controller
                 'hari' => $date->day,
                 'nama_hari' => $namaHariMap[$date->dayOfWeek],
                 'is_weekend' => $isLibur,
-                'is_sunday' => $date->isSunday(),
                 'keterangan_libur' => $keteranganLibur,
                 'catatan_libur' => $catatanLibur,
                 'lokasi' => $lokasi,
+                'lokasi_list' => $lokasiList, // Array with ID and lokasi
                 'catatan_info' => $catatanInfo,
             ];
         }
