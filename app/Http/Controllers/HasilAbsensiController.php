@@ -14,8 +14,10 @@ class HasilAbsensiController extends Controller
     {
         $bulan = (int) $request->query('bulan', now()->month);
         $tahun = (int) $request->query('tahun', now()->year);
+        $penempatan = $request->query('penempatan', '');
 
         $pegawai = User::where('role', '!=', 'super_admin')
+            ->when($penempatan, fn($q) => $q->where('penempatan', $penempatan))
             ->orderBy('urutan')
             ->orderBy('name')
             ->get();
@@ -72,7 +74,8 @@ class HasilAbsensiController extends Controller
             'tahun',
             'namaBulan',
             'jamKerjaData',
-            'dayMap'
+            'dayMap',
+            'penempatan'
         ));
     }
 }

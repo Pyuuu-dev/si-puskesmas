@@ -82,6 +82,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/pegawai/{id}', [PegawaiController::class, 'destroy'])
         ->middleware('role:super_admin,kepala')
         ->name('pegawai.destroy');
+    Route::post('/pegawai/reorder', [PegawaiController::class, 'reorder'])
+        ->middleware('role:super_admin,kepala')
+        ->name('pegawai.reorder');
 
     // Master Kegiatan (3 level: Menu → Rincian Menu → Kegiatan)
     Route::middleware('role:super_admin')->group(function () {

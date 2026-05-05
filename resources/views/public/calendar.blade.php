@@ -26,7 +26,7 @@
                         @endforeach
                     </select>
                     <select name="tahun" class="rounded-lg border-0 bg-white/20 text-white text-sm focus:ring-2 focus:ring-white/50 [&>option]:text-gray-900">
-                        @foreach(range(now()->year - 2, now()->year + 1) as $y)
+                        @foreach(range(now()->year - 5, now()->year + 5) as $y)
                             <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
                         @endforeach
                     </select>

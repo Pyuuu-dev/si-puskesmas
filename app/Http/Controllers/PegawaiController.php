@@ -113,6 +113,24 @@ class PegawaiController extends Controller
         ]);
     }
 
+    public function reorder(Request $request)
+    {
+        $validated = $request->validate([
+            'order' => 'required|array',
+            'order.*.id' => 'required|integer|exists:users,id',
+            'order.*.urutan' => 'required|integer|min:0',
+        ]);
+
+        foreach ($validated['order'] as $item) {
+            User::where('id', $item['id'])->update(['urutan' => $item['urutan']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Urutan pegawai berhasil diperbarui.',
+        ]);
+    }
+
     public function export()
     {
         $pegawai = User::orderBy('urutan')->orderBy('name')->get();

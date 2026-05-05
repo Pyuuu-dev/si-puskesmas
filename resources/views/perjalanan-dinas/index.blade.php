@@ -12,7 +12,7 @@
         </div>
 
         {{-- Month/Year Selector --}}
-        <form method="GET" action="{{ route('perjalanan-dinas') }}" class="flex items-center gap-2">
+        <form method="GET" action="{{ route('perjalanan-dinas') }}" class="flex flex-wrap items-center gap-2">
             <select name="bulan" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 @foreach(range(1, 12) as $b)
                     <option value="{{ $b }}" {{ $bulan == $b ? 'selected' : '' }}>
@@ -21,16 +21,26 @@
                 @endforeach
             </select>
             <select name="tahun" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                @foreach(range(now()->year - 2, now()->year + 1) as $y)
+                @foreach(range(now()->year - 5, now()->year + 5) as $y)
                     <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
+                @endforeach
+            </select>
+            <select name="pegawai[]" multiple class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 min-w-[200px] max-h-[38px]" title="Pilih pegawai (kosong = semua)">
+                @foreach($allPegawai as $ap)
+                    <option value="{{ $ap->id }}" {{ in_array($ap->id, $selectedPegawai ?? []) ? 'selected' : '' }}>{{ $ap->name }}</option>
                 @endforeach
             </select>
             <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
                 </svg>
-                Tampilkan
+                Filter
             </button>
+            @if(!empty($selectedPegawai))
+            <a href="{{ route('perjalanan-dinas', ['bulan' => $bulan, 'tahun' => $tahun]) }}" class="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
+                Reset
+            </a>
+            @endif
         </form>
     </div>
 
@@ -52,9 +62,9 @@
 
     {{-- Matrix Table --}}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto max-h-[75vh] overflow-y-auto">
             <table class="w-full text-xs">
-                <thead>
+                <thead class="sticky top-0 z-30">
                     {{-- Location/Info row - vertical text --}}
                     <tr class="bg-indigo-50 border-b border-indigo-100">
                         <th class="sticky left-0 z-20 bg-indigo-50 px-3 py-1 text-left font-medium text-indigo-600 min-w-[180px] border-r border-indigo-100 text-[10px]">
@@ -210,44 +220,6 @@
                         </tr>
                     @endforeach
                 </tbody>
-                <tfoot>
-                    {{-- Location/Info row bottom - vertical text --}}
-                    <tr class="bg-indigo-50 border-t-2 border-indigo-200">
-                        <th class="sticky left-0 z-20 bg-indigo-50 px-3 py-1 text-left font-medium text-indigo-600 min-w-[180px] border-r border-indigo-100 text-[10px]">
-                            Lokasi
-                        </th>
-                        @foreach($dates as $date)
-                            <th class="px-0 py-1 text-center border-r border-indigo-100 {{ $date['is_weekend'] ? 'bg-red-50' : '' }}" style="min-width:36px;">
-                                @if($date['lokasi'])
-                                    <div class="flex items-center justify-center h-20 group relative cursor-pointer" 
-                                         onclick="showLokasiModal('{{ $date['tanggal'] }}', {{ json_encode($date['lokasi_list']) }})"
-                                         title="Klik untuk kelola lokasi">
-                                        <span class="text-[10px] text-indigo-700 font-semibold leading-tight capitalize" style="writing-mode: vertical-rl; transform: rotate(180deg);">{{ $date['lokasi'] }}</span>
-                                        <div class="absolute inset-0 bg-indigo-100 opacity-0 group-hover:opacity-30 transition-opacity"></div>
-                                    </div>
-                                @else
-                                    <div class="h-3"></div>
-                                @endif
-                            </th>
-                        @endforeach
-                        <th class="px-3 py-1 bg-indigo-50"></th>
-                    </tr>
-                    {{-- Date row with full day names bottom --}}
-                    <tr class="bg-gray-50 border-b border-gray-200">
-                        <th class="sticky left-0 z-20 bg-gray-50 px-3 py-2.5 text-left font-semibold text-gray-700 min-w-[180px] border-r border-gray-200">
-                            Nama Pegawai
-                        </th>
-                        @foreach($dates as $date)
-                            <th class="px-0 py-1.5 text-center font-semibold border-r border-gray-200 {{ $date['is_weekend'] ? 'bg-red-50 text-red-600' : 'text-gray-700' }}" style="min-width:36px;" title="{{ $date['keterangan_libur'] ?? '' }}">
-                                <div>{{ $date['hari'] }}</div>
-                                <div class="text-[10px] font-normal text-gray-400">{{ $date['nama_hari'] }}</div>
-                            </th>
-                        @endforeach
-                        <th class="px-3 py-2.5 text-center font-semibold text-gray-700 bg-gray-100 border-l-2 border-gray-300">
-                            Total
-                        </th>
-                    </tr>
-                </tfoot>
             </table>
         </div>
     </div>

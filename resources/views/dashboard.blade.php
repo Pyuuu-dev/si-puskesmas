@@ -23,6 +23,7 @@
                 <div>
                     <p class="text-sm font-medium text-gray-500">Total Pegawai</p>
                     <p class="text-2xl font-bold text-gray-900">{{ $totalPegawai }}</p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Induk: {{ $pegawaiInduk }} | Desa: {{ $pegawaiDesa }}</p>
                 </div>
             </div>
         </div>
@@ -37,12 +38,12 @@
                 </div>
                 <div>
                     <p class="text-sm font-medium text-gray-500">Hadir Hari Ini</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $hadirHariIni }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $hadirHariIni }}<span class="text-sm font-normal text-gray-400">/{{ $totalPegawai }}</span></p>
                 </div>
             </div>
         </div>
 
-        {{-- Tidak Hadir --}}
+        {{-- Belum Absen --}}
         <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
             <div class="flex items-center gap-4">
                 <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-red-50 text-red-600">
@@ -51,13 +52,13 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-500">Tidak Hadir</p>
+                    <p class="text-sm font-medium text-gray-500">Belum Absen</p>
                     <p class="text-2xl font-bold text-gray-900">{{ $totalPegawai - $hadirHariIni }}</p>
                 </div>
             </div>
         </div>
 
-        {{-- Kegiatan Bulan Ini --}}
+        {{-- Perjalanan Dinas Bulan Ini --}}
         <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
             <div class="flex items-center gap-4">
                 <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-50 text-blue-600">
@@ -66,15 +67,99 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-500">Perjalanan Dinas</p>
+                    <p class="text-sm font-medium text-gray-500">Dinas Bulan Ini</p>
                     <p class="text-2xl font-bold text-gray-900">{{ $kegiatanBulanIni }}</p>
                 </div>
             </div>
         </div>
     </div>
 
+    {{-- Rekap Bulan Ini --}}
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 class="text-sm font-bold text-gray-900 mb-3">Rekap Status Bulan Ini</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-yellow-50 rounded-lg p-3 text-center">
+                <p class="text-2xl font-bold text-yellow-700">{{ $totalIzinBulanIni }}</p>
+                <p class="text-xs text-yellow-600 mt-1">Izin</p>
+            </div>
+            <div class="bg-orange-50 rounded-lg p-3 text-center">
+                <p class="text-2xl font-bold text-orange-700">{{ $totalSakitBulanIni }}</p>
+                <p class="text-xs text-orange-600 mt-1">Sakit</p>
+            </div>
+            <div class="bg-rose-50 rounded-lg p-3 text-center">
+                <p class="text-2xl font-bold text-rose-700">{{ $totalCutiBulanIni }}</p>
+                <p class="text-xs text-rose-600 mt-1">Cuti</p>
+            </div>
+            <div class="bg-sky-50 rounded-lg p-3 text-center">
+                <p class="text-2xl font-bold text-sky-700">{{ $totalDinasLuarBulanIni }}</p>
+                <p class="text-xs text-sky-600 mt-1">Dinas Luar</p>
+            </div>
+        </div>
+    </div>
+
     {{-- Quick Links --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {{-- Belum Absen Hari Ini --}}
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-semibold text-gray-900">Belum Absen Hari Ini</h3>
+                <a href="{{ route('absensi') }}" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Lihat Semua &rarr;</a>
+            </div>
+            <div class="p-5">
+                @if($pegawaiBelumAbsen->count() > 0)
+                    <div class="space-y-2">
+                        @foreach($pegawaiBelumAbsen as $pb)
+                            <div class="flex items-center gap-3">
+                                <div class="w-7 h-7 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-[10px] font-bold">
+                                    {{ strtoupper(substr($pb->name, 0, 1)) }}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-sm font-medium text-gray-700 truncate block">{{ $pb->name }}</span>
+                                    <span class="text-[10px] text-gray-400">{{ $pb->jabatan ?? '-' }} | {{ ucfirst($pb->penempatan ?? 'induk') }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                        @if($totalPegawai - $hadirHariIni > 10)
+                            <p class="text-xs text-gray-400 text-center pt-2">dan {{ ($totalPegawai - $hadirHariIni) - 10 }} pegawai lainnya...</p>
+                        @endif
+                    </div>
+                @else
+                    <p class="text-sm text-green-600 text-center py-4 font-medium">Semua pegawai sudah absen hari ini!</p>
+                @endif
+            </div>
+        </div>
+
+        {{-- Dinas Hari Ini --}}
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-semibold text-gray-900">Dinas Hari Ini</h3>
+                <a href="{{ route('perjalanan-dinas') }}" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Lihat Semua &rarr;</a>
+            </div>
+            <div class="p-5">
+                @if($dinasHariIni->count() > 0)
+                    <div class="space-y-2">
+                        @foreach($dinasHariIni as $dinas)
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">
+                                        {{ strtoupper(substr($dinas->user->name ?? '-', 0, 1)) }}
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-700">{{ $dinas->user->name ?? '-' }}</span>
+                                </div>
+                                @if($dinas->kegiatan)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                                        {{ $dinas->kegiatan->kode ?? substr($dinas->kegiatan->nama ?? '', 0, 10) }}
+                                    </span>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-sm text-gray-400 text-center py-4">Tidak ada perjalanan dinas hari ini.</p>
+                @endif
+            </div>
+        </div>
+
         {{-- Absensi Hari Ini --}}
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">

@@ -28,27 +28,28 @@
 
     {{-- Search Bar --}}
     <div class="bg-white rounded-xl border border-gray-200 p-4">
-        <form method="GET" action="{{ route('pegawai') }}" class="flex gap-2">
-            <div class="flex-1 relative">
+        <form id="search-form" method="GET" action="{{ route('pegawai') }}">
+            <div class="relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                 </svg>
                 <input 
                     type="text" 
                     name="search" 
+                    id="search-input"
                     value="{{ $search ?? '' }}" 
                     placeholder="Cari nama, NIP, jabatan, atau email..." 
-                    class="w-full pl-10 pr-4 py-2 rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    class="w-full pl-10 pr-10 py-2 rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    autocomplete="off"
                 >
+                @if($search)
+                <a href="{{ route('pegawai') }}" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                </a>
+                @endif
             </div>
-            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
-                Cari
-            </button>
-            @if($search)
-            <a href="{{ route('pegawai') }}" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
-                Reset
-            </a>
-            @endif
         </form>
     </div>
 
@@ -59,6 +60,7 @@
                 <thead>
                     <tr class="bg-gray-50 border-b border-gray-200">
                         <th class="px-4 py-3 text-left font-semibold text-gray-700">#</th>
+                        <th class="px-2 py-3 text-center font-semibold text-gray-700">Urutan</th>
                         <th class="px-4 py-3 text-left font-semibold text-gray-700">Nama</th>
                         <th class="px-4 py-3 text-left font-semibold text-gray-700">NIP</th>
                         <th class="px-4 py-3 text-left font-semibold text-gray-700">Pangkat/Gol</th>
@@ -75,6 +77,14 @@
                     @forelse($pegawai as $i => $p)
                         <tr class="hover:bg-gray-50" id="pegawai-row-{{ $p->id }}">
                             <td class="px-4 py-3 text-gray-500">{{ ($pegawai->currentPage() - 1) * $pegawai->perPage() + $i + 1 }}</td>
+                            <td class="px-2 py-3 text-center">
+                                <input type="number" 
+                                       value="{{ $p->urutan }}" 
+                                       min="0" max="999"
+                                       class="w-14 text-xs text-center border-gray-300 rounded px-1 py-1 focus:border-indigo-500 focus:ring-indigo-500"
+                                       onchange="updateUrutan({{ $p->id }}, this.value)"
+                                       title="Ubah urutan (angka kecil = lebih atas)">
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
                                     <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">
@@ -139,7 +149,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="px-4 py-8 text-center text-gray-500">
+                            <td colspan="12" class="px-4 py-8 text-center text-gray-500">
                                 @if($search)
                                     Tidak ada pegawai yang cocok dengan pencarian "{{ $search }}"
                                 @else
@@ -504,5 +514,35 @@ document.addEventListener('alpine:init', () => {
         }
     }));
 });
+
+// Live search with debounce
+let searchTimeout;
+const searchInput = document.getElementById('search-input');
+const searchForm = document.getElementById('search-form');
+if (searchInput) {
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchForm.submit();
+        }, 400);
+    });
+}
+
+// Update urutan pegawai
+window.updateUrutan = async function(id, urutan) {
+    try {
+        const res = await window.api.post('/pegawai/reorder', {
+            order: [{ id: id, urutan: parseInt(urutan) }]
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.toast('Urutan berhasil diperbarui', 'success');
+        } else {
+            window.toast(data.message || 'Gagal', 'error');
+        }
+    } catch (e) {
+        window.toast('Terjadi kesalahan', 'error');
+    }
+};
 </script>
 @endsection

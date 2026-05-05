@@ -21,7 +21,7 @@
                 @endforeach
             </select>
             <select name="tahun" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                @foreach(range(now()->year - 2, now()->year + 1) as $y)
+                @foreach(range(now()->year - 5, now()->year + 5) as $y)
                     <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
                 @endforeach
             </select>
@@ -49,9 +49,9 @@
 
     {{-- Matrix Table --}}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto max-h-[75vh] overflow-y-auto">
             <table class="w-full text-xs">
-                <thead>
+                <thead class="sticky top-0 z-30">
                     {{-- Date row --}}
                     <tr class="bg-gray-50 border-b border-gray-200">
                         <th class="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-700 min-w-[180px] border-r border-gray-200" rowspan="2">
@@ -159,30 +159,7 @@
                         </tr>
                     @endforeach
                 </tbody>
-                <tfoot>
-                    {{-- Date row bottom --}}
-                    <tr class="bg-gray-50 border-t-2 border-gray-300">
-                        <th class="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-700 min-w-[180px] border-r border-gray-200" rowspan="2">
-                            Nama Pegawai
-                        </th>
-                        @foreach($dates as $date)
-                            <th colspan="2" class="px-0 py-1.5 text-center font-semibold border-r border-gray-200 {{ $date['is_weekend'] ? 'bg-red-50 text-red-600' : 'text-gray-700' }}" title="{{ $date['keterangan_libur'] ?? '' }}">
-                                <div>{{ $date['hari'] }}</div>
-                                <div class="text-[9px] font-normal text-gray-400">{{ $date['nama_hari'] }}</div>
-                            </th>
-                        @endforeach
-                        <th colspan="8" class="px-2 py-2 text-center font-semibold text-gray-700 bg-gray-100 border-l-2 border-gray-300" rowspan="2">
-                            Rekap
-                        </th>
-                    </tr>
-                    {{-- P/S sub-header bottom --}}
-                    <tr class="bg-gray-50 border-b border-gray-200">
-                        @foreach($dates as $date)
-                            <th class="px-1 py-1 text-center font-medium border-r border-gray-100 {{ $date['is_weekend'] ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:28px;">P</th>
-                            <th class="px-1 py-1 text-center font-medium border-r border-gray-200 {{ $date['is_weekend'] ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:28px;">S</th>
-                        @endforeach
-                    </tr>
-                </tfoot>
+
             </table>
         </div>
     </div>

@@ -12,7 +12,7 @@
         </div>
 
         {{-- Month/Year Selector --}}
-        <form method="GET" action="{{ route('hasil-absensi') }}" class="flex items-center gap-2">
+        <form method="GET" action="{{ route('hasil-absensi') }}" class="flex flex-wrap items-center gap-2">
             <select name="bulan" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 @foreach(range(1, 12) as $b)
                     <option value="{{ $b }}" {{ $bulan == $b ? 'selected' : '' }}>
@@ -21,9 +21,14 @@
                 @endforeach
             </select>
             <select name="tahun" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                @foreach(range(now()->year - 2, now()->year + 1) as $y)
+                @foreach(range(now()->year - 5, now()->year + 5) as $y)
                     <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
                 @endforeach
+            </select>
+            <select name="penempatan" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="">Semua Penempatan</option>
+                <option value="induk" {{ $penempatan === 'induk' ? 'selected' : '' }}>Induk</option>
+                <option value="desa" {{ $penempatan === 'desa' ? 'selected' : '' }}>Desa</option>
             </select>
             <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -90,9 +95,9 @@
 
     {{-- Results Table --}}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto max-h-[75vh] overflow-y-auto">
             <table class="w-full text-xs">
-                <thead>
+                <thead class="sticky top-0 z-30">
                     <tr class="bg-gray-50 border-b border-gray-200">
                         <th class="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-700 min-w-[180px] border-r border-gray-200" rowspan="2">
                             Nama Pegawai
@@ -211,33 +216,6 @@
                         </tr>
                     @endforeach
                 </tbody>
-                <tfoot>
-                    <tr class="bg-gray-50 border-t-2 border-gray-300">
-                        <th class="sticky left-0 z-20 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-700 min-w-[180px] border-r border-gray-200" rowspan="2">
-                            Nama Pegawai
-                        </th>
-                        <th class="px-2 py-1 text-center font-semibold text-gray-700 border-r border-gray-200" rowspan="2">
-                            Penempatan
-                        </th>
-                        @foreach($dates as $date)
-                            @php
-                                $isSunday = $date['day_of_week'] === 0;
-                                $namaHariFull = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][$date['day_of_week']] ?? '';
-                            @endphp
-                            <th colspan="2" class="px-0 py-1.5 text-center font-semibold border-r border-gray-200 {{ $isSunday ? 'bg-red-50 text-red-600' : 'text-gray-700' }}">
-                                <div>{{ $date['hari'] }}</div>
-                                <div class="text-[10px] font-normal text-gray-400">{{ $namaHariFull }}</div>
-                            </th>
-                        @endforeach
-                    </tr>
-                    <tr class="bg-gray-50 border-b border-gray-200">
-                        @foreach($dates as $date)
-                            @php $isSunday = $date['day_of_week'] === 0; @endphp
-                            <th class="px-1 py-1 text-center font-medium border-r border-gray-100 {{ $isSunday ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:42px;">Masuk</th>
-                            <th class="px-1 py-1 text-center font-medium border-r border-gray-200 {{ $isSunday ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:42px;">Pulang</th>
-                        @endforeach
-                    </tr>
-                </tfoot>
             </table>
         </div>
     </div>

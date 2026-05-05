@@ -82,40 +82,98 @@ class SettingController extends Controller
             ], 422);
         }
 
-        // Temporarily set config
-        config(['services.telegram.bot_token' => $botToken]);
-        config(['services.telegram.chat_id' => $chatId]);
-
-        $telegram = new TelegramBackupService();
-        $result = $telegram->sendMessage('✅ Test koneksi berhasil! Bot Telegram sudah terhubung dengan SI Puskesmas.');
-
-        if ($result) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Koneksi berhasil! Pesan test telah dikirim ke Telegram.'
+        try {
+            // Send test message directly using HTTP
+            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+            $response = \Illuminate\Support\Facades\Http::post($url, [
+                'chat_id' => $chatId,
+                'text' => "✅ Test koneksi berhasil!\n\nBot Telegram sudah terhubung dengan SI Puskesmas.\nWaktu: " . now()->format('d/m/Y H:i:s'),
+                'parse_mode' => 'HTML',
             ]);
-        }
 
-        return response()->json([
-            'success' => false,
-            'message' => 'Gagal mengirim pesan. Periksa Bot Token dan Chat ID Anda.'
-        ], 422);
+            if ($response->successful() && $response->json('ok')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Koneksi berhasil! Pesan test telah dikirim ke Telegram.'
+                ]);
+            }
+
+            $errorDesc = $response->json('description') ?? 'Unknown error';
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal: ' . $errorDesc
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function backupNow()
     {
-        try {
-            Artisan::call('backup:telegram');
-            $output = Artisan::output();
+        $botToken = Setting::get('telegram_bot_token');
+        $chatId = Setting::get('telegram_chat_id');
 
+        if (!$botToken || !$chatId) {
             return response()->json([
-                'success' => true,
-                'message' => 'Backup database berhasil dikirim ke Telegram!'
+                'success' => false,
+                'message' => 'Konfigurasi Telegram belum diisi. Simpan Bot Token dan Chat ID terlebih dahulu.'
+            ], 422);
+        }
+
+        try {
+            // Create backup file
+            $dbPath = database_path('database.sqlite');
+            if (!file_exists($dbPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File database tidak ditemukan.'
+                ], 500);
+            }
+
+            $backupDir = storage_path('app/backups');
+            if (!is_dir($backupDir)) {
+                mkdir($backupDir, 0755, true);
+            }
+
+            $timestamp = now()->format('Y-m-d_His');
+            $backupPath = $backupDir . '/database_' . $timestamp . '.sqlite';
+            copy($dbPath, $backupPath);
+
+            // Send to Telegram
+            $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
+            $response = \Illuminate\Support\Facades\Http::attach(
+                'document',
+                file_get_contents($backupPath),
+                'backup_' . $timestamp . '.sqlite'
+            )->post($url, [
+                'chat_id' => $chatId,
+                'caption' => "🗄️ Database Backup (Manual)\n📅 " . now()->format('d/m/Y H:i:s'),
             ]);
+
+            // Cleanup
+            if (file_exists($backupPath)) {
+                unlink($backupPath);
+            }
+
+            if ($response->successful() && $response->json('ok')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Backup database berhasil dikirim ke Telegram!'
+                ]);
+            }
+
+            $errorDesc = $response->json('description') ?? 'Unknown error';
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengirim backup: ' . $errorDesc
+            ], 500);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal melakukan backup: ' . $e->getMessage()
+                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }
