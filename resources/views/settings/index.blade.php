@@ -90,6 +90,17 @@
                                placeholder="123456789">
                     </div>
                     
+                    {{-- Jadwal Backup --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Jadwal Backup Otomatis (WITA)</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="time" name="backup_jam_1" value="{{ old('backup_jam_1', $settings['backup_jam_1']) }}" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <input type="time" name="backup_jam_2" value="{{ old('backup_jam_2', $settings['backup_jam_2']) }}" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <input type="time" name="backup_jam_3" value="{{ old('backup_jam_3', $settings['backup_jam_3']) }}" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Kosongkan jika tidak ingin backup pada jam tersebut</p>
+                    </div>
+
                     <div class="p-3 bg-amber-50 rounded-lg text-xs text-amber-700 border border-amber-200">
                         <strong>Cara Setup:</strong> Buka <a href="https://t.me/BotFather" target="_blank" class="underline font-medium">@BotFather</a> di Telegram, ketik <code class="bg-amber-100 px-1 rounded">/newbot</code>, salin token. Lalu buka <a href="https://t.me/userinfobot" target="_blank" class="underline font-medium">@userinfobot</a> untuk mendapatkan Chat ID. Simpan, lalu klik Test Koneksi.
                     </div>

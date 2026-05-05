@@ -18,18 +18,26 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {
-        // Backup database to Telegram 3 times daily
-        $schedule->command('backup:telegram')
-            ->dailyAt('08:00')
-            ->timezone('Asia/Makassar');
-        
-        $schedule->command('backup:telegram')
-            ->dailyAt('14:00')
-            ->timezone('Asia/Makassar');
-        
-        $schedule->command('backup:telegram')
-            ->dailyAt('20:00')
-            ->timezone('Asia/Makassar');
+        // Backup database to Telegram - times configurable from settings
+        $jam1 = \App\Models\Setting::get('backup_jam_1', '08:00');
+        $jam2 = \App\Models\Setting::get('backup_jam_2', '14:00');
+        $jam3 = \App\Models\Setting::get('backup_jam_3', '20:00');
+
+        if ($jam1) {
+            $schedule->command('backup:telegram')
+                ->dailyAt($jam1)
+                ->timezone('Asia/Makassar');
+        }
+        if ($jam2) {
+            $schedule->command('backup:telegram')
+                ->dailyAt($jam2)
+                ->timezone('Asia/Makassar');
+        }
+        if ($jam3) {
+            $schedule->command('backup:telegram')
+                ->dailyAt($jam3)
+                ->timezone('Asia/Makassar');
+        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

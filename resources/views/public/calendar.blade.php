@@ -70,18 +70,30 @@
                     </div>
 
                     {{-- Attendance Summary --}}
-                    @if($day['jumlah_hadir'] > 0 || $day['jumlah_belum'] > 0)
+                    @if(!$day['is_libur'] && ($day['jumlah_hadir'] > 0 || $day['jumlah_belum'] > 0))
                         <div class="mb-1 pb-1 border-b border-gray-200">
                             <div class="flex items-center gap-1 text-[9px]">
-                                <span class="inline-flex items-center px-1 py-0.5 rounded bg-green-100 text-green-700 font-medium">
+                                <span class="inline-flex items-center px-1 py-0.5 rounded bg-green-100 text-green-700 font-medium" title="Hadir: {{ $day['jumlah_hadir'] }}/{{ $day['total_pegawai'] }}">
                                     ✓ {{ $day['jumlah_hadir'] }}
                                 </span>
                                 @if($day['jumlah_belum'] > 0)
-                                    <span class="inline-flex items-center px-1 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
+                                    <span class="inline-flex items-center px-1 py-0.5 rounded bg-gray-100 text-gray-600 font-medium" title="Belum absen: {{ implode(', ', array_slice($day['nama_belum'], 0, 10)) }}{{ count($day['nama_belum']) > 10 ? '...' : '' }}">
                                         ✗ {{ $day['jumlah_belum'] }}
                                     </span>
                                 @endif
                             </div>
+                        </div>
+                    @endif
+
+                    {{-- Pegawai Dinas --}}
+                    @if(!empty($day['nama_dinas']))
+                        <div class="mb-0.5">
+                            @foreach(array_slice($day['nama_dinas'], 0, 3) as $nama)
+                                <div class="text-[8px] text-blue-600 leading-tight truncate">{{ $nama }}</div>
+                            @endforeach
+                            @if(count($day['nama_dinas']) > 3)
+                                <div class="text-[8px] text-blue-400">+{{ count($day['nama_dinas']) - 3 }} lainnya</div>
+                            @endif
                         </div>
                     @endif
 

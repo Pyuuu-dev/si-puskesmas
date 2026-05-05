@@ -110,6 +110,17 @@ class PublicCalendarController extends Controller
             $jumlahHadir = count($pegawaiHadir);
             $jumlahBelum = $allPegawai->count() - $jumlahHadir;
 
+            // Get names of pegawai who did dinas
+            $namaDinas = [];
+            if (isset($dinasData[$dateStr])) {
+                foreach ($dinasData[$dateStr] as $dinas) {
+                    $namaDinas[] = $dinas->user->name ?? '-';
+                }
+            }
+
+            // Get names of pegawai who haven't done anything
+            $namaBelum = $allPegawai->whereNotIn('id', $pegawaiHadir)->pluck('name')->toArray();
+
             $days[] = [
                 'tanggal' => $dateStr,
                 'hari' => $d,
@@ -121,6 +132,8 @@ class PublicCalendarController extends Controller
                 'jumlah_hadir' => $jumlahHadir,
                 'jumlah_belum' => $jumlahBelum,
                 'total_pegawai' => $allPegawai->count(),
+                'nama_dinas' => $namaDinas,
+                'nama_belum' => $namaBelum,
             ];
         }
 

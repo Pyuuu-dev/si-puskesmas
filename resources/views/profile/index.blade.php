@@ -15,7 +15,7 @@
     </div>
     @endif
 
-    <form method="POST" action="{{ route('profile.update') }}" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         @csrf
         @method('PUT')
 
@@ -27,6 +27,24 @@
                     @endforeach
                 </div>
             @endif
+
+            {{-- Profile Photo --}}
+            <div class="flex items-center gap-4">
+                <div class="shrink-0">
+                    @if($user->foto)
+                        <img src="{{ asset('storage/' . $user->foto) }}" alt="Foto Profil" class="w-20 h-20 rounded-full object-cover border-2 border-gray-200">
+                    @else
+                        <div class="w-20 h-20 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-2xl font-bold border-2 border-gray-200">
+                            {{ strtoupper(substr($user->name, 0, 1)) }}
+                        </div>
+                    @endif
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Foto Profil</label>
+                    <input type="file" name="foto" accept="image/jpeg,image/png" class="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    <p class="text-xs text-gray-400 mt-1">JPG/PNG, maks 2MB</p>
+                </div>
+            </div>
 
             {{-- Info (read-only) --}}
             <div class="bg-gray-50 rounded-lg p-4 space-y-2">

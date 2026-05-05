@@ -107,20 +107,20 @@
                         </th>
                         @foreach($dates as $date)
                             @php
-                                $isSunday = $date['day_of_week'] === 0;
+                                $isLibur = $date['is_weekend'];
                                 $namaHariFull = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][$date['day_of_week']] ?? '';
                             @endphp
-                            <th colspan="2" class="px-0 py-1.5 text-center font-semibold border-r border-gray-200 {{ $isSunday ? 'bg-red-50 text-red-600' : 'text-gray-700' }}">
+                            <th colspan="2" class="px-0 py-1.5 text-center font-semibold border-r border-gray-200 {{ $isLibur ? 'bg-red-50 text-red-600' : 'text-gray-700' }}" title="{{ $date['keterangan_libur'] ?? '' }}">
                                 <div>{{ $date['hari'] }}</div>
-                                <div class="text-[10px] font-normal text-gray-400">{{ $namaHariFull }}</div>
+                                <div class="text-[10px] font-normal {{ $isLibur ? 'text-red-400' : 'text-gray-400' }}">{{ $namaHariFull }}</div>
                             </th>
                         @endforeach
                     </tr>
                     <tr class="bg-gray-50 border-b border-gray-200">
                         @foreach($dates as $date)
-                            @php $isSunday = $date['day_of_week'] === 0; @endphp
-                            <th class="px-1 py-1 text-center font-medium border-r border-gray-100 {{ $isSunday ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:42px;">Masuk</th>
-                            <th class="px-1 py-1 text-center font-medium border-r border-gray-200 {{ $isSunday ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:42px;">Pulang</th>
+                            @php $isLibur = $date['is_weekend']; @endphp
+                            <th class="px-1 py-1 text-center font-medium border-r border-gray-100 {{ $isLibur ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:42px;">Masuk</th>
+                            <th class="px-1 py-1 text-center font-medium border-r border-gray-200 {{ $isLibur ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:42px;">Pulang</th>
                         @endforeach
                     </tr>
                 </thead>
@@ -146,7 +146,7 @@
 
                             @foreach($dates as $date)
                                 @php
-                                    $isSunday = $date['day_of_week'] === 0;
+                                    $isLibur = $date['is_weekend'];
                                     $dayName = $dayMap[$date['day_of_week']] ?? null;
                                     $jk = $dayName ? ($jamKerjaData[$dayName] ?? null) : null;
 
@@ -190,7 +190,7 @@
                                 @endphp
 
                                 {{-- Masuk (Pagi) --}}
-                                <td class="px-0 py-0 text-center border-r border-gray-100 {{ $isSunday ? 'bg-red-50/50' : '' }}">
+                                <td class="px-0 py-0 text-center border-r border-gray-100 {{ $isLibur ? 'bg-red-50/50' : '' }}">
                                     @if($jamPagi)
                                         <div class="w-full h-10 flex flex-col items-center justify-center">
                                             <span class="text-[10px] text-gray-400">{{ substr($jamPagi, 0, 5) }}</span>
@@ -202,7 +202,7 @@
                                 </td>
 
                                 {{-- Pulang (Sore) --}}
-                                <td class="px-0 py-0 text-center border-r border-gray-200 {{ $isSunday ? 'bg-red-50/50' : '' }}">
+                                <td class="px-0 py-0 text-center border-r border-gray-200 {{ $isLibur ? 'bg-red-50/50' : '' }}">
                                     @if($jamSore)
                                         <div class="w-full h-10 flex flex-col items-center justify-center">
                                             <span class="text-[10px] text-gray-400">{{ substr($jamSore, 0, 5) }}</span>

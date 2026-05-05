@@ -19,6 +19,9 @@ class SettingController extends Controller
             'email_instansi' => Setting::get('email_instansi', ''),
             'telegram_bot_token' => Setting::get('telegram_bot_token', ''),
             'telegram_chat_id' => Setting::get('telegram_chat_id', ''),
+            'backup_jam_1' => Setting::get('backup_jam_1', '08:00'),
+            'backup_jam_2' => Setting::get('backup_jam_2', '14:00'),
+            'backup_jam_3' => Setting::get('backup_jam_3', '20:00'),
         ];
 
         $order = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
@@ -38,6 +41,9 @@ class SettingController extends Controller
             'email_instansi' => 'nullable|email|max:255',
             'telegram_bot_token' => 'nullable|string|max:255',
             'telegram_chat_id' => 'nullable|string|max:255',
+            'backup_jam_1' => 'nullable|string|max:5',
+            'backup_jam_2' => 'nullable|string|max:5',
+            'backup_jam_3' => 'nullable|string|max:5',
         ]);
 
         foreach ($validated as $key => $value) {
