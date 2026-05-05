@@ -125,7 +125,7 @@
                             <td class="px-4 py-3 text-center">
                                 <div class="flex items-center justify-center gap-1">
                                     <button
-                                        @click="openEdit({{ $p->id }}, {{ json_encode(['name'=>$p->name,'nip'=>$p->nip,'pangkat_golongan'=>$p->pangkat_golongan,'status_pegawai'=>$p->status_pegawai,'jabatan'=>$p->jabatan,'unit_kerja'=>$p->unit_kerja,'penempatan'=>$p->penempatan ?? 'induk','email'=>$p->email,'role'=>$p->role,'is_user'=>$p->is_user ?? true]) }})"
+                                        @click="openEdit({{ $p->id }}, {{ json_encode(['name'=>$p->name,'nip'=>$p->nip,'pangkat_golongan'=>$p->pangkat_golongan,'status_pegawai'=>$p->status_pegawai,'status_kepegawaian'=>$p->status_kepegawaian,'jabatan'=>$p->jabatan,'unit_kerja'=>$p->unit_kerja,'penempatan'=>$p->penempatan ?? 'induk','email'=>$p->email,'role'=>$p->role,'is_user'=>$p->is_user ?? true]) }})"
                                         class="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                                         title="Edit"
                                     >
@@ -267,6 +267,17 @@
                         </div>
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status Kepegawaian</label>
+                        <select x-model="form.status_kepegawaian" class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">- Pilih -</option>
+                            <option value="PNS">PNS</option>
+                            <option value="PPPK">PPPK</option>
+                            <option value="PPPK Paruh Waktu">PPPK Paruh Waktu</option>
+                            <option value="PTT">PTT</option>
+                            <option value="Lainnya">Lainnya</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Jabatan</label>
                         <input type="text" x-model="form.jabatan" class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Jabatan">
                     </div>
@@ -393,6 +404,7 @@ document.addEventListener('alpine:init', () => {
             nip: '',
             pangkat_golongan: '',
             status_pegawai: '',
+            status_kepegawaian: '',
             jabatan: '',
             unit_kerja: '',
             penempatan: 'induk',
@@ -403,7 +415,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         resetForm() {
-            this.form = { name: '', nip: '', pangkat_golongan: '', status_pegawai: '', jabatan: '', unit_kerja: '', penempatan: 'induk', email: '', role: 'pegawai', is_user: true, password: '' };
+            this.form = { name: '', nip: '', pangkat_golongan: '', status_pegawai: '', status_kepegawaian: '', jabatan: '', unit_kerja: '', penempatan: 'induk', email: '', role: 'pegawai', is_user: true, password: '' };
             this.errors = [];
             this.editId = null;
         },

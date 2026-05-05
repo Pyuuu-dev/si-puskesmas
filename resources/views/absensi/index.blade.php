@@ -164,6 +164,24 @@
         </div>
     </div>
 
+    {{-- Keterangan Hari Libur --}}
+    @php
+        $liburDates = collect($dates)->filter(fn($d) => $d['keterangan_libur'] ?? false);
+    @endphp
+    @if($liburDates->isNotEmpty())
+    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+        <p class="text-xs text-red-700 font-medium mb-2">Keterangan Hari Libur:</p>
+        <div class="space-y-1">
+            @foreach($liburDates as $ld)
+                <div class="flex items-start gap-2 text-xs">
+                    <span class="font-medium text-red-600 shrink-0">Tgl {{ $ld['hari'] }} ({{ $ld['nama_hari'] }}):</span>
+                    <span class="text-red-600">{{ $ld['keterangan_libur'] }}</span>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- Kelola Tanggal Libur (admin/kepala) --}}
     @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
     <div class="bg-white rounded-xl border border-gray-200 p-4" x-data="tanggalManager()">

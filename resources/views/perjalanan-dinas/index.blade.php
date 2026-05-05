@@ -12,7 +12,7 @@
         </div>
 
         {{-- Month/Year Selector --}}
-        <form method="GET" action="{{ route('perjalanan-dinas') }}" class="flex flex-wrap items-center gap-2">
+        <form method="GET" action="{{ route('perjalanan-dinas') }}" class="flex flex-wrap items-center gap-2" x-data="{ showPegawai: false }">
             <select name="bulan" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 @foreach(range(1, 12) as $b)
                     <option value="{{ $b }}" {{ $bulan == $b ? 'selected' : '' }}>
@@ -25,16 +25,35 @@
                     <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
                 @endforeach
             </select>
-            <select name="pegawai[]" multiple class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500 min-w-[200px] max-h-[38px]" title="Pilih pegawai (kosong = semua)">
-                @foreach($allPegawai as $ap)
-                    <option value="{{ $ap->id }}" {{ in_array($ap->id, $selectedPegawai ?? []) ? 'selected' : '' }}>{{ $ap->name }}</option>
-                @endforeach
-            </select>
+            
+            {{-- Pegawai selector dropdown --}}
+            <div class="relative">
+                <button type="button" @click="showPegawai = !showPegawai" class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                    <svg class="w-4 h-4 mr-1.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                    </svg>
+                    Pegawai ({{ !empty($selectedPegawai) ? count($selectedPegawai) . ' dipilih' : 'Semua' }})
+                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+                </button>
+                <div x-show="showPegawai" @click.away="showPegawai = false" x-transition
+                     class="absolute top-full left-0 mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                    <div class="p-2 border-b border-gray-100 sticky top-0 bg-white">
+                        <label class="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+                            <input type="checkbox" onchange="toggleAllPegawai(this)" {{ empty($selectedPegawai) ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            Tampilkan Semua
+                        </label>
+                    </div>
+                    @foreach($allPegawai as $ap)
+                        <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm">
+                            <input type="checkbox" name="pegawai[]" value="{{ $ap->id }}" {{ in_array($ap->id, $selectedPegawai) ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                            <span class="truncate">{{ $ap->name }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
             <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
-                <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-                </svg>
-                Filter
+                Tampilkan
             </button>
             @if(!empty($selectedPegawai))
             <a href="{{ route('perjalanan-dinas', ['bulan' => $bulan, 'tahun' => $tahun]) }}" class="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
@@ -328,6 +347,16 @@
 
 @section('scripts')
 <script>
+// Toggle all pegawai checkboxes
+window.toggleAllPegawai = function(checkbox) {
+    const checkboxes = document.querySelectorAll('input[name="pegawai[]"]');
+    if (checkbox.checked) {
+        checkboxes.forEach(cb => cb.checked = false);
+    } else {
+        checkboxes.forEach(cb => cb.checked = true);
+    }
+};
+
 // Global function to show lokasi modal
 window.showLokasiModal = function(tanggal, lokasiData) {
     // Trigger Alpine component

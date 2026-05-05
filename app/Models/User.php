@@ -18,6 +18,7 @@ class User extends Authenticatable
         'jabatan',
         'pangkat_golongan',
         'status_pegawai',
+        'status_kepegawaian',
         'unit_kerja',
         'penempatan',
         'email',

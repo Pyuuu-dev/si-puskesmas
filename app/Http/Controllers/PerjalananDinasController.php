@@ -21,15 +21,21 @@ class PerjalananDinasController extends Controller
         $bulan = (int) $request->query('bulan', now()->month);
         $tahun = (int) $request->query('tahun', now()->year);
         $selectedPegawai = $request->query('pegawai', []);
+        if (!is_array($selectedPegawai)) {
+            $selectedPegawai = [];
+        }
+        $selectedPegawai = array_map('intval', $selectedPegawai);
 
         $allPegawai = User::where('role', '!=', 'super_admin')
             ->orderBy('urutan')
             ->orderBy('name')
             ->get();
 
-        $pegawai = $allPegawai->when(!empty($selectedPegawai), function ($collection) use ($selectedPegawai) {
-            return $collection->whereIn('id', $selectedPegawai);
-        });
+        if (!empty($selectedPegawai)) {
+            $pegawai = $allPegawai->whereIn('id', $selectedPegawai)->values();
+        } else {
+            $pegawai = $allPegawai;
+        }
 
         $startDate = Carbon::createFromDate($tahun, $bulan, 1);
         $daysInMonth = $startDate->daysInMonth;

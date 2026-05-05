@@ -91,16 +91,7 @@
                     </div>
                     
                     <div class="p-3 bg-amber-50 rounded-lg text-xs text-amber-700 border border-amber-200">
-                        <strong>📖 Panduan Setup:</strong>
-                        <ol class="mt-1 space-y-0.5 list-decimal list-inside">
-                            <li>Buat bot baru di Telegram dengan <a href="https://t.me/BotFather" target="_blank" class="underline">@BotFather</a></li>
-                            <li>Salin Bot Token yang diberikan</li>
-                            <li>Dapatkan Chat ID Anda dari <a href="https://t.me/userinfobot" target="_blank" class="underline">@userinfobot</a></li>
-                            <li>Kirim pesan /start ke bot Anda</li>
-                            <li>Isi form di atas dan klik "Simpan Pengaturan"</li>
-                            <li>Gunakan tombol "Test Koneksi" untuk memverifikasi</li>
-                        </ol>
-                        <p class="mt-2">Lihat panduan lengkap di <code class="bg-amber-100 px-1 rounded">TELEGRAM_BACKUP_SETUP.md</code></p>
+                        <strong>Cara Setup:</strong> Buka <a href="https://t.me/BotFather" target="_blank" class="underline font-medium">@BotFather</a> di Telegram, ketik <code class="bg-amber-100 px-1 rounded">/newbot</code>, salin token. Lalu buka <a href="https://t.me/userinfobot" target="_blank" class="underline font-medium">@userinfobot</a> untuk mendapatkan Chat ID. Simpan, lalu klik Test Koneksi.
                     </div>
                 </div>
             </div>
