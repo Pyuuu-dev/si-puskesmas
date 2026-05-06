@@ -148,7 +148,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/hasil-absensi', [\App\Http\Controllers\HasilAbsensiController::class, 'index'])
         ->name('hasil-absensi');
 
-    // Rekap TL & PSW
+    // Rekap TL & PSW (hidden for now)
     Route::get('/rekap', [RekapController::class, 'index'])
         ->name('rekap.index');
     Route::get('/rekap/export', [RekapController::class, 'export'])
@@ -156,4 +156,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/rekap/config', [RekapController::class, 'updateConfig'])
         ->middleware('role:super_admin')
         ->name('rekap.config.update');
+
+    // Rekap Absensi (dedicated page)
+    Route::get('/rekap-absensi', [RekapController::class, 'absensi'])
+        ->name('rekap.absensi');
+    Route::get('/rekap-absensi/kehadiran', [RekapController::class, 'exportKehadiran'])
+        ->name('rekap.export-kehadiran');
+    Route::get('/rekap-absensi/apel', [RekapController::class, 'exportApel'])
+        ->name('rekap.export-apel');
 });

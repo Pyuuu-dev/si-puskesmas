@@ -93,6 +93,15 @@
                 Hasil Absensi
             </a>
 
+            {{-- Rekap Absensi --}}
+            <a href="{{ route('rekap.absensi') }}"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('rekap.absensi') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
+                <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Rekap & Download
+            </a>
+
             {{-- Rekap TL/PSW (hidden - not released yet) --}}
             {{-- 
             <a href="{{ route('rekap.index') }}"

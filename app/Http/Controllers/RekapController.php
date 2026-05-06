@@ -243,4 +243,209 @@ class RekapController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+    /**
+     * Halaman Rekap Absensi (dedicated page)
+     */
+    public function absensi(Request $request)
+    {
+        $bulan = (int) $request->query('bulan', now()->month);
+        $tahun = (int) $request->query('tahun', now()->year);
+
+        $pegawai = User::where('role', '!=', 'super_admin')
+            ->orderBy('urutan')
+            ->orderBy('name')
+            ->get();
+
+        $startDate = Carbon::createFromDate($tahun, $bulan, 1);
+        $daysInMonth = $startDate->daysInMonth;
+        $namaBulan = $startDate->locale('id')->isoFormat('MMMM');
+
+        // Get tanggal libur
+        $tanggalLibur = TanggalLibur::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)->get()
+            ->keyBy(fn($i) => $i->tanggal->format('Y-m-d'));
+
+        // Get all absensi
+        $absensiData = Absensi::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)->get();
+
+        // Build rekap per pegawai
+        $rekap = [];
+        foreach ($pegawai as $p) {
+            $userAbsensi = $absensiData->where('user_id', $p->id);
+            $rekap[$p->id] = [
+                'hadir' => $userAbsensi->where('status', 'hadir')->count(),
+                'izin' => $userAbsensi->where('status', 'izin')->count(),
+                'sakit' => $userAbsensi->where('status', 'sakit')->count(),
+                'cuti_bersalin' => $userAbsensi->where('status', 'cuti_bersalin')->count(),
+                'cuti_tahunan' => $userAbsensi->where('status', 'cuti_tahunan')->count(),
+                'dinas_luar' => $userAbsensi->where('status', 'dinas_luar')->count(),
+                'ijin_belajar' => $userAbsensi->where('status', 'ijin_belajar')->count(),
+                'alfa' => $userAbsensi->where('status', 'alfa')->count(),
+            ];
+        }
+
+        return view('rekap.absensi', compact(
+            'pegawai', 'rekap', 'bulan', 'tahun', 'namaBulan', 'daysInMonth'
+        ));
+    }
+
+    /**
+     * Export Rekap Kehadiran CSV
+     */
+    public function exportKehadiran(Request $request)
+    {
+        $bulan = (int) $request->query('bulan', now()->month);
+        $tahun = (int) $request->query('tahun', now()->year);
+        $namaBulan = Carbon::createFromDate($tahun, $bulan, 1)->locale('id')->isoFormat('MMMM');
+
+        $pegawai = User::where('role', '!=', 'super_admin')
+            ->orderBy('urutan')->orderBy('name')->get();
+
+        $absensiData = Absensi::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)->get();
+
+        $csv = "No,Nama,NIP,Jabatan,Hadir,Izin,Sakit,Cuti Bersalin,Cuti Tahunan,Dinas Luar,Ijin Belajar,Tidak Hadir\n";
+        foreach ($pegawai as $i => $p) {
+            $ua = $absensiData->where('user_id', $p->id);
+            $csv .= ($i+1) . ',"' . $p->name . '","' . ($p->nip ?? '') . '","' . ($p->jabatan ?? '') . '",';
+            $csv .= $ua->where('status', 'hadir')->count() . ',';
+            $csv .= $ua->where('status', 'izin')->count() . ',';
+            $csv .= $ua->where('status', 'sakit')->count() . ',';
+            $csv .= $ua->where('status', 'cuti_bersalin')->count() . ',';
+            $csv .= $ua->where('status', 'cuti_tahunan')->count() . ',';
+            $csv .= $ua->where('status', 'dinas_luar')->count() . ',';
+            $csv .= $ua->where('status', 'ijin_belajar')->count() . ',';
+            $csv .= $ua->where('status', 'alfa')->count() . "\n";
+        }
+
+        return response($csv)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', "attachment; filename=\"rekap_kehadiran_{$namaBulan}_{$tahun}.csv\"");
+    }
+
+    /**
+     * Export Rekap Apel (Pagi/Siang/Total) CSV
+     */
+    public function exportApel(Request $request)
+    {
+        $bulan = (int) $request->query('bulan', now()->month);
+        $tahun = (int) $request->query('tahun', now()->year);
+        $tipe = $request->query('tipe', 'total'); // pagi, siang, total
+        $namaBulan = Carbon::createFromDate($tahun, $bulan, 1)->locale('id')->isoFormat('MMMM');
+
+        $pegawai = User::where('role', '!=', 'super_admin')
+            ->orderBy('urutan')->orderBy('name')->get();
+
+        $startDate = Carbon::createFromDate($tahun, $bulan, 1);
+        $daysInMonth = $startDate->daysInMonth;
+
+        // Get jam kerja
+        $jamKerjaData = JamKerja::all()->keyBy('hari');
+        $dayMap = [1 => 'senin', 2 => 'selasa', 3 => 'rabu', 4 => 'kamis', 5 => 'jumat', 6 => 'sabtu'];
+
+        // Get absensi
+        $slots = [];
+        if ($tipe === 'pagi') $slots = ['pagi'];
+        elseif ($tipe === 'siang') $slots = ['sore'];
+        else $slots = ['pagi', 'sore'];
+
+        $absensiData = Absensi::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->whereIn('slot', $slots)
+            ->where('status', 'hadir')
+            ->get();
+
+        // Build dates header
+        $dates = [];
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $dates[] = Carbon::createFromDate($tahun, $bulan, $d);
+        }
+
+        // CSV header
+        $tipeLabel = $tipe === 'pagi' ? 'Apel Pagi' : ($tipe === 'siang' ? 'Apel Siang' : 'Apel Pagi + Siang');
+        $csv = "No,Nama,NIP,Penempatan";
+        foreach ($dates as $date) {
+            if ($tipe === 'total') {
+                $csv .= ",{$date->day} P,{$date->day} S";
+            } else {
+                $csv .= ",{$date->day}";
+            }
+        }
+        $csv .= "\n";
+
+        foreach ($pegawai as $i => $p) {
+            $penempatan = $p->penempatan ?? 'induk';
+            $csv .= ($i+1) . ',"' . $p->name . '","' . ($p->nip ?? '') . '","' . ucfirst($penempatan) . '"';
+
+            foreach ($dates as $date) {
+                $dateStr = $date->format('Y-m-d');
+                $dayName = $dayMap[$date->dayOfWeek] ?? null;
+                $jk = $dayName ? ($jamKerjaData[$dayName] ?? null) : null;
+
+                if ($tipe === 'total') {
+                    // Pagi
+                    $recPagi = $absensiData->where('user_id', $p->id)
+                        ->where('slot', 'pagi')
+                        ->first(fn($r) => $r->tanggal->format('Y-m-d') === $dateStr);
+                    $jamPagi = $recPagi->jam ?? '';
+                    if ($jamPagi && $jk) {
+                        $konversi = $penempatan === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;
+                        try {
+                            $t = Carbon::createFromFormat('H:i', substr($jamPagi, 0, 5));
+                            $t->subMinutes($konversi);
+                            $jamPagi = $t->format('H:i');
+                        } catch (\Exception $e) {}
+                    }
+
+                    // Sore
+                    $recSore = $absensiData->where('user_id', $p->id)
+                        ->where('slot', 'sore')
+                        ->first(fn($r) => $r->tanggal->format('Y-m-d') === $dateStr);
+                    $jamSore = $recSore->jam ?? '';
+                    if ($jamSore && $jk) {
+                        $konversi = $penempatan === 'induk' ? $jk->konversi_induk_pulang : $jk->konversi_desa_pulang;
+                        try {
+                            $t = Carbon::createFromFormat('H:i', substr($jamSore, 0, 5));
+                            $t->addMinutes($konversi);
+                            $jamSore = $t->format('H:i');
+                        } catch (\Exception $e) {}
+                    }
+
+                    $csv .= ",{$jamPagi},{$jamSore}";
+                } else {
+                    $slot = $tipe === 'pagi' ? 'pagi' : 'sore';
+                    $rec = $absensiData->where('user_id', $p->id)
+                        ->where('slot', $slot)
+                        ->first(fn($r) => $r->tanggal->format('Y-m-d') === $dateStr);
+                    $jam = $rec->jam ?? '';
+                    if ($jam && $jk) {
+                        if ($slot === 'pagi') {
+                            $konversi = $penempatan === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;
+                            try {
+                                $t = Carbon::createFromFormat('H:i', substr($jam, 0, 5));
+                                $t->subMinutes($konversi);
+                                $jam = $t->format('H:i');
+                            } catch (\Exception $e) {}
+                        } else {
+                            $konversi = $penempatan === 'induk' ? $jk->konversi_induk_pulang : $jk->konversi_desa_pulang;
+                            try {
+                                $t = Carbon::createFromFormat('H:i', substr($jam, 0, 5));
+                                $t->addMinutes($konversi);
+                                $jam = $t->format('H:i');
+                            } catch (\Exception $e) {}
+                        }
+                    }
+                    $csv .= ",{$jam}";
+                }
+            }
+            $csv .= "\n";
+        }
+
+        $filename = "rekap_{$tipe}_{$namaBulan}_{$tahun}.csv";
+        return response($csv)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
 }
