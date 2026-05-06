@@ -129,10 +129,10 @@
             </div>
         </div>
 
-        {{-- Dinas Hari Ini --}}
+        {{-- Perjalanan Dinas / Matriks --}}
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h3 class="font-semibold text-gray-900">Dinas Hari Ini</h3>
+                <h3 class="font-semibold text-gray-900">Perjalanan Dinas / Matriks</h3>
                 <a href="{{ route('perjalanan-dinas') }}" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">Lihat Semua &rarr;</a>
             </div>
             <div class="p-5">

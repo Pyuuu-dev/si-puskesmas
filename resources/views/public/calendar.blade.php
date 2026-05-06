@@ -26,6 +26,10 @@
                         <p class="text-indigo-200 text-sm">Kalender Kegiatan Perjalanan Dinas</p>
                     </div>
                 </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('public.dinas', ['bulan' => $bulan, 'tahun' => $tahun]) }}" class="px-3 py-2 bg-white/20 text-white text-sm rounded-lg hover:bg-white/30 transition-colors">
+                        Tabel Dinas
+                    </a>
                 <form method="GET" action="{{ route('public.calendar') }}" class="flex items-center gap-2">
                     <select name="bulan" class="rounded-lg border-0 bg-white/20 text-white text-sm focus:ring-2 focus:ring-white/50 [&>option]:text-gray-900">
                         @foreach(range(1, 12) as $b)
@@ -43,6 +47,7 @@
                         Tampilkan
                     </button>
                 </form>
+                </div>
             </div>
         </div>
     </div>

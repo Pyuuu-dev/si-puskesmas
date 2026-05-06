@@ -21,6 +21,7 @@ Route::get('/', fn () => redirect()->route('dashboard'));
 
 // Public calendar (no auth required)
 Route::get('/kalender', [\App\Http\Controllers\PublicCalendarController::class, 'index'])->name('public.calendar');
+Route::get('/perjalanan-dinas-publik', [\App\Http\Controllers\PublicCalendarController::class, 'dinas'])->name('public.dinas');
 
 Route::get('/login', [AuthController::class, 'showLogin'])
     ->middleware('guest')

@@ -4,7 +4,6 @@ use App\Models\Setting;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -60,22 +59,3 @@ Artisan::command('backup:telegram', function () {
         unlink($backupPath);
     }
 })->purpose('Send database backup to Telegram');
-
-// Schedule backup at configured times
-try {
-    $backupJam1 = Setting::get('backup_jam_1', '08:00');
-    $backupJam2 = Setting::get('backup_jam_2', '14:00');
-    $backupJam3 = Setting::get('backup_jam_3', '20:00');
-
-    if ($backupJam1) {
-        Schedule::command('backup:telegram')->dailyAt($backupJam1)->withoutOverlapping();
-    }
-    if ($backupJam2) {
-        Schedule::command('backup:telegram')->dailyAt($backupJam2)->withoutOverlapping();
-    }
-    if ($backupJam3) {
-        Schedule::command('backup:telegram')->dailyAt($backupJam3)->withoutOverlapping();
-    }
-} catch (\Exception $e) {
-    // Settings table may not exist yet during migrations
-}

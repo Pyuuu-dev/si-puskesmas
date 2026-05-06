@@ -141,4 +141,61 @@ class PublicCalendarController extends Controller
             'days', 'bulan', 'tahun', 'namaBulan', 'namaInstansi', 'firstDayOfWeek', 'daysInMonth'
         ));
     }
+
+    public function dinas(Request $request)
+    {
+        $bulan = (int) $request->query('bulan', now()->month);
+        $tahun = (int) $request->query('tahun', now()->year);
+
+        $namaInstansi = Setting::get('nama_instansi', 'SI Puskesmas');
+        $namaBulan = Carbon::createFromDate($tahun, $bulan, 1)->locale('id')->isoFormat('MMMM');
+
+        // Get all pegawai (exclude admin)
+        $allPegawai = User::where('role', '!=', 'super_admin')
+            ->orderBy('urutan')
+            ->orderBy('name')
+            ->get();
+
+        // Get perjalanan dinas for this month
+        $dinasData = PerjalananDinas::with(['kegiatan.rincianMenu.menuKegiatan', 'user'])
+            ->whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->orderBy('tanggal')
+            ->get();
+
+        // Group by date
+        $dinasByDate = $dinasData->groupBy(fn($d) => $d->tanggal->format('Y-m-d'));
+
+        // Build table data
+        $tableData = [];
+        foreach ($dinasByDate as $dateStr => $records) {
+            $date = Carbon::parse($dateStr);
+            $namaHari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][$date->dayOfWeek];
+            
+            $pegawaiDinas = [];
+            foreach ($records as $record) {
+                $pegawaiDinas[] = [
+                    'nama' => $record->user->name ?? '-',
+                    'kegiatan' => $record->kegiatan->nama ?? '-',
+                    'kode' => $record->kegiatan->kode ?? '-',
+                ];
+            }
+
+            $tableData[] = [
+                'tanggal' => $dateStr,
+                'tanggal_format' => $date->format('d/m/Y'),
+                'hari' => $namaHari,
+                'pegawai' => $pegawaiDinas,
+            ];
+        }
+
+        // Pegawai yang belum pernah dinas bulan ini
+        $pegawaiDinasIds = $dinasData->pluck('user_id')->unique()->toArray();
+        $pegawaiBelumDinas = $allPegawai->whereNotIn('id', $pegawaiDinasIds)->values();
+
+        return view('public.dinas', compact(
+            'tableData', 'bulan', 'tahun', 'namaBulan', 'namaInstansi',
+            'allPegawai', 'pegawaiBelumDinas', 'dinasData'
+        ));
+    }
 }

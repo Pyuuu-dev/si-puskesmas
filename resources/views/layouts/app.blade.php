@@ -93,7 +93,8 @@
                 Hasil Absensi
             </a>
 
-            {{-- Rekap TL/PSW --}}
+            {{-- Rekap TL/PSW (hidden - not released yet) --}}
+            {{-- 
             <a href="{{ route('rekap.index') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('rekap.*') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -101,6 +102,7 @@
                 </svg>
                 Rekap TL/PSW
             </a>
+            --}}
 
             {{-- Perjalanan Dinas Group --}}
             <p class="px-3 mt-4 mb-2 text-xs font-semibold tracking-wider text-indigo-300 uppercase">Perjalanan Dinas</p>
