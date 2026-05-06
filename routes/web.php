@@ -160,8 +160,6 @@ Route::middleware('auth')->group(function () {
     // Rekap Absensi (dedicated page)
     Route::get('/rekap-absensi', [RekapController::class, 'absensi'])
         ->name('rekap.absensi');
-    Route::get('/rekap-absensi/kehadiran', [RekapController::class, 'exportKehadiran'])
-        ->name('rekap.export-kehadiran');
-    Route::get('/rekap-absensi/apel', [RekapController::class, 'exportApel'])
-        ->name('rekap.export-apel');
+    Route::get('/rekap-absensi/download', [RekapController::class, 'exportExcel'])
+        ->name('rekap.export-excel');
 });

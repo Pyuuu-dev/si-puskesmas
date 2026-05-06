@@ -5,10 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Absensi;
 use App\Models\JamKerja;
 use App\Models\RekapConfig;
+use App\Models\Setting;
 use App\Models\TanggalLibur;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class RekapController extends Controller
 {
@@ -292,160 +298,311 @@ class RekapController extends Controller
     }
 
     /**
-     * Export Rekap Kehadiran CSV
+     * Export Rekap Absensi Excel (Kehadiran + Apel Pagi + Apel Siang)
      */
-    public function exportKehadiran(Request $request)
+    public function exportExcel(Request $request)
     {
         $bulan = (int) $request->query('bulan', now()->month);
         $tahun = (int) $request->query('tahun', now()->year);
-        $namaBulan = Carbon::createFromDate($tahun, $bulan, 1)->locale('id')->isoFormat('MMMM');
 
+        $startDate = Carbon::createFromDate($tahun, $bulan, 1);
+        $daysInMonth = $startDate->daysInMonth;
+        $namaBulan = strtoupper($startDate->locale('id')->isoFormat('MMMM'));
+        $namaInstansi = Setting::get('nama_instansi', 'UPTD Puskesmas');
+
+        // Data sources
         $pegawai = User::where('role', '!=', 'super_admin')
             ->orderBy('urutan')->orderBy('name')->get();
 
         $absensiData = Absensi::whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)->get();
 
-        $csv = "No,Nama,NIP,Jabatan,Hadir,Izin,Sakit,Cuti Bersalin,Cuti Tahunan,Dinas Luar,Ijin Belajar,Tidak Hadir\n";
-        foreach ($pegawai as $i => $p) {
-            $ua = $absensiData->where('user_id', $p->id);
-            $csv .= ($i+1) . ',"' . $p->name . '","' . ($p->nip ?? '') . '","' . ($p->jabatan ?? '') . '",';
-            $csv .= $ua->where('status', 'hadir')->count() . ',';
-            $csv .= $ua->where('status', 'izin')->count() . ',';
-            $csv .= $ua->where('status', 'sakit')->count() . ',';
-            $csv .= $ua->where('status', 'cuti_bersalin')->count() . ',';
-            $csv .= $ua->where('status', 'cuti_tahunan')->count() . ',';
-            $csv .= $ua->where('status', 'dinas_luar')->count() . ',';
-            $csv .= $ua->where('status', 'ijin_belajar')->count() . ',';
-            $csv .= $ua->where('status', 'alfa')->count() . "\n";
+        $jamKerjaData = JamKerja::all()->keyBy('hari');
+
+        $tanggalLibur = TanggalLibur::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)->get()
+            ->keyBy(fn($i) => $i->tanggal->format('Y-m-d'));
+
+        $dayMap = [1 => 'senin', 2 => 'selasa', 3 => 'rabu', 4 => 'kamis', 5 => 'jumat', 6 => 'sabtu'];
+
+        // Status mapping
+        $statusMap = [
+            'hadir' => 'H',
+            'izin' => 'I',
+            'sakit' => 'S',
+            'cuti' => 'CB',
+            'cuti_bersalin' => 'CB',
+            'cuti_tahunan' => 'C',
+            'dinas_luar' => 'DL',
+            'ijin_belajar' => 'IB',
+            'alfa' => 'TK',
+        ];
+
+        // Build matrix: [user_id][date_str][slot] = {status, jam}
+        $matrix = [];
+        foreach ($absensiData as $record) {
+            $matrix[$record->user_id][$record->tanggal->format('Y-m-d')][$record->slot] = [
+                'status' => $record->status,
+                'jam' => $record->jam,
+            ];
         }
 
-        return response($csv)
-            ->header('Content-Type', 'text/csv')
-            ->header('Content-Disposition', "attachment; filename=\"rekap_kehadiran_{$namaBulan}_{$tahun}.csv\"");
+        // Determine holidays/sundays per day
+        $holidays = [];
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $date = Carbon::createFromDate($tahun, $bulan, $d);
+            $dateStr = $date->format('Y-m-d');
+            $isLibur = $date->isSunday();
+            if (isset($tanggalLibur[$dateStr])) {
+                $isLibur = $tanggalLibur[$dateStr]->is_libur;
+            }
+            $holidays[$d] = $isLibur;
+        }
+
+        // Create spreadsheet
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('REKAP ABSEN');
+
+        // Rekap status codes
+        $rekapCodes = ['H', 'S', 'I', 'C', 'DL', 'CB', 'IB', 'TK'];
+
+        // Fixed columns: NO, NAMA, NIP, PANGKAT/GOL, ST/S/F, JABATAN = 6 cols
+        $fixedCols = 6;
+        $totalCols = $fixedCols + $daysInMonth + count($rekapCodes);
+
+        // Helper: get column letter from number (1-based)
+        $colLetter = function ($colNum) {
+            return \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colNum);
+        };
+
+        $lastCol = $colLetter($totalCols);
+
+        // ============================================================
+        // SECTION 1: KEHADIRAN
+        // ============================================================
+        $currentRow = $this->writeSection(
+            $sheet, 1, 'KEHADIRAN', $namaInstansi, $namaBulan, $tahun, $bulan,
+            $daysInMonth, $fixedCols, $rekapCodes, $colLetter, $lastCol, $totalCols,
+            $pegawai, $matrix, $holidays, $dayMap, $jamKerjaData, $statusMap, 'kehadiran'
+        );
+
+        // 5 blank rows
+        $currentRow += 5;
+
+        // ============================================================
+        // SECTION 2: APEL PAGI
+        // ============================================================
+        $currentRow = $this->writeSection(
+            $sheet, $currentRow, 'APEL PAGI', $namaInstansi, $namaBulan, $tahun, $bulan,
+            $daysInMonth, $fixedCols, $rekapCodes, $colLetter, $lastCol, $totalCols,
+            $pegawai, $matrix, $holidays, $dayMap, $jamKerjaData, $statusMap, 'apel_pagi'
+        );
+
+        // 5 blank rows
+        $currentRow += 5;
+
+        // ============================================================
+        // SECTION 3: APEL SIANG
+        // ============================================================
+        $currentRow = $this->writeSection(
+            $sheet, $currentRow, 'APEL SIANG', $namaInstansi, $namaBulan, $tahun, $bulan,
+            $daysInMonth, $fixedCols, $rekapCodes, $colLetter, $lastCol, $totalCols,
+            $pegawai, $matrix, $holidays, $dayMap, $jamKerjaData, $statusMap, 'apel_siang'
+        );
+
+        // Auto-width columns
+        for ($i = 1; $i <= $totalCols; $i++) {
+            $sheet->getColumnDimension($colLetter($i))->setAutoSize(true);
+        }
+
+        // Generate file
+        $namaBulanFile = $startDate->locale('id')->isoFormat('MMMM');
+        $filename = "REKAP_ABSEN_{$namaBulan}_{$tahun}.xlsx";
+        $tempFile = tempnam(sys_get_temp_dir(), 'rekap') . '.xlsx';
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
 
     /**
-     * Export Rekap Apel (Pagi/Siang/Total) CSV
+     * Write a section (Kehadiran/Apel Pagi/Apel Siang) to the sheet
      */
-    public function exportApel(Request $request)
-    {
-        $bulan = (int) $request->query('bulan', now()->month);
-        $tahun = (int) $request->query('tahun', now()->year);
-        $tipe = $request->query('tipe', 'total'); // pagi, siang, total
-        $namaBulan = Carbon::createFromDate($tahun, $bulan, 1)->locale('id')->isoFormat('MMMM');
+    private function writeSection(
+        $sheet, $startRow, $sectionLabel, $namaInstansi, $namaBulan, $tahun, $bulan,
+        $daysInMonth, $fixedCols, $rekapCodes, $colLetter, $lastCol, $totalCols,
+        $pegawai, $matrix, $holidays, $dayMap, $jamKerjaData, $statusMap, $sectionType
+    ) {
+        $row = $startRow;
 
-        $pegawai = User::where('role', '!=', 'super_admin')
-            ->orderBy('urutan')->orderBy('name')->get();
+        // Row 1: Title
+        $sheet->setCellValue('A' . $row, "REKAPITULASI ABSENSI KEHADIRAN, APEL PAGI DAN APEL SIANG STAF {$namaInstansi}");
+        $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $row++;
 
-        $startDate = Carbon::createFromDate($tahun, $bulan, 1);
-        $daysInMonth = $startDate->daysInMonth;
+        // Row 2: Dinas
+        $sheet->setCellValue('A' . $row, "DINAS / BADAN / KANTOR {$namaInstansi}");
+        $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $row++;
 
-        // Get jam kerja
-        $jamKerjaData = JamKerja::all()->keyBy('hari');
-        $dayMap = [1 => 'senin', 2 => 'selasa', 3 => 'rabu', 4 => 'kamis', 5 => 'jumat', 6 => 'sabtu'];
+        // Row 3: Bulan
+        $sheet->setCellValue('A' . $row, "BULAN {$namaBulan} {$tahun}");
+        $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $row++;
 
-        // Get absensi
-        $slots = [];
-        if ($tipe === 'pagi') $slots = ['pagi'];
-        elseif ($tipe === 'siang') $slots = ['sore'];
-        else $slots = ['pagi', 'sore'];
-
-        $absensiData = Absensi::whereMonth('tanggal', $bulan)
-            ->whereYear('tanggal', $tahun)
-            ->whereIn('slot', $slots)
-            ->where('status', 'hadir')
-            ->get();
-
-        // Build dates header
-        $dates = [];
-        for ($d = 1; $d <= $daysInMonth; $d++) {
-            $dates[] = Carbon::createFromDate($tahun, $bulan, $d);
+        // Row 4: Headers
+        $headers = ['NO', 'NAMA', 'NIP', 'PANGKAT/GOL', 'ST/S/F', 'JABATAN'];
+        for ($i = 0; $i < count($headers); $i++) {
+            $sheet->setCellValue($colLetter($i + 1) . $row, $headers[$i]);
         }
+        // Date columns
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $col = $colLetter($fixedCols + $d);
+            $sheet->setCellValue($col . $row, $d);
+            $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        // CSV header
-        $tipeLabel = $tipe === 'pagi' ? 'Apel Pagi' : ($tipe === 'siang' ? 'Apel Siang' : 'Apel Pagi + Siang');
-        $csv = "No,Nama,NIP,Penempatan";
-        foreach ($dates as $date) {
-            if ($tipe === 'total') {
-                $csv .= ",{$date->day} P,{$date->day} S";
-            } else {
-                $csv .= ",{$date->day}";
+            // Red background for holidays/sundays
+            if ($holidays[$d]) {
+                $sheet->getStyle($col . $row)->getFill()
+                    ->setFillType(Fill::FILL_SOLID)
+                    ->getStartColor()->setRGB('FF0000');
+                $sheet->getStyle($col . $row)->getFont()->getColor()->setRGB('FFFFFF');
             }
         }
-        $csv .= "\n";
+        // Rekap columns
+        for ($i = 0; $i < count($rekapCodes); $i++) {
+            $col = $colLetter($fixedCols + $daysInMonth + $i + 1);
+            $sheet->setCellValue($col . $row, $rekapCodes[$i]);
+            $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
+        // Bold header row
+        $sheet->getStyle("A{$row}:{$lastCol}{$row}")->getFont()->setBold(true);
+        $row++;
 
-        foreach ($pegawai as $i => $p) {
+        // Row 5: Sub-header under NAMA column
+        $sheet->setCellValue('B' . $row, strtoupper($sectionLabel));
+        $sheet->getStyle('B' . $row)->getFont()->setBold(true);
+        $row++;
+
+        // Data rows
+        $dataStartRow = $row;
+        foreach ($pegawai as $idx => $p) {
             $penempatan = $p->penempatan ?? 'induk';
-            $csv .= ($i+1) . ',"' . $p->name . '","' . ($p->nip ?? '') . '","' . ucfirst($penempatan) . '"';
+            $sheet->setCellValue('A' . $row, $idx + 1);
+            $sheet->setCellValue('B' . $row, $p->name);
+            $sheet->setCellValue('C' . $row, $p->nip ?? '-');
+            $sheet->setCellValue('D' . $row, $p->pangkat ?? '-');
+            $sheet->setCellValue('E' . $row, $p->status_pegawai ?? '-');
+            $sheet->setCellValue('F' . $row, $p->jabatan ?? '-');
 
-            foreach ($dates as $date) {
+            // Rekap counters
+            $rekapCount = array_fill_keys($rekapCodes, 0);
+
+            for ($d = 1; $d <= $daysInMonth; $d++) {
+                $date = Carbon::createFromDate($tahun, $bulan, $d);
                 $dateStr = $date->format('Y-m-d');
-                $dayName = $dayMap[$date->dayOfWeek] ?? null;
+                $col = $colLetter($fixedCols + $d);
+
+                $dayOfWeek = $date->dayOfWeek;
+                $dayName = $dayMap[$dayOfWeek] ?? null;
                 $jk = $dayName ? ($jamKerjaData[$dayName] ?? null) : null;
 
-                if ($tipe === 'total') {
-                    // Pagi
-                    $recPagi = $absensiData->where('user_id', $p->id)
-                        ->where('slot', 'pagi')
-                        ->first(fn($r) => $r->tanggal->format('Y-m-d') === $dateStr);
-                    $jamPagi = $recPagi->jam ?? '';
-                    if ($jamPagi && $jk) {
-                        $konversi = $penempatan === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;
-                        try {
-                            $t = Carbon::createFromFormat('H:i', substr($jamPagi, 0, 5));
-                            $t->subMinutes($konversi);
-                            $jamPagi = $t->format('H:i');
-                        } catch (\Exception $e) {}
-                    }
+                // Holiday column styling
+                if ($holidays[$d]) {
+                    $sheet->getStyle($col . $row)->getFill()
+                        ->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()->setRGB('FFCCCC');
+                }
 
-                    // Sore
-                    $recSore = $absensiData->where('user_id', $p->id)
-                        ->where('slot', 'sore')
-                        ->first(fn($r) => $r->tanggal->format('Y-m-d') === $dateStr);
-                    $jamSore = $recSore->jam ?? '';
-                    if ($jamSore && $jk) {
-                        $konversi = $penempatan === 'induk' ? $jk->konversi_induk_pulang : $jk->konversi_desa_pulang;
-                        try {
-                            $t = Carbon::createFromFormat('H:i', substr($jamSore, 0, 5));
-                            $t->addMinutes($konversi);
-                            $jamSore = $t->format('H:i');
-                        } catch (\Exception $e) {}
-                    }
+                if ($sectionType === 'kehadiran') {
+                    // Get status from pagi slot (primary) or sore slot
+                    $pagiData = $matrix[$p->id][$dateStr]['pagi'] ?? null;
+                    $soreData = $matrix[$p->id][$dateStr]['sore'] ?? null;
+                    $data = $pagiData ?? $soreData;
 
-                    $csv .= ",{$jamPagi},{$jamSore}";
-                } else {
-                    $slot = $tipe === 'pagi' ? 'pagi' : 'sore';
-                    $rec = $absensiData->where('user_id', $p->id)
-                        ->where('slot', $slot)
-                        ->first(fn($r) => $r->tanggal->format('Y-m-d') === $dateStr);
-                    $jam = $rec->jam ?? '';
-                    if ($jam && $jk) {
-                        if ($slot === 'pagi') {
-                            $konversi = $penempatan === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;
-                            try {
-                                $t = Carbon::createFromFormat('H:i', substr($jam, 0, 5));
-                                $t->subMinutes($konversi);
-                                $jam = $t->format('H:i');
-                            } catch (\Exception $e) {}
-                        } else {
-                            $konversi = $penempatan === 'induk' ? $jk->konversi_induk_pulang : $jk->konversi_desa_pulang;
-                            try {
-                                $t = Carbon::createFromFormat('H:i', substr($jam, 0, 5));
-                                $t->addMinutes($konversi);
-                                $jam = $t->format('H:i');
-                            } catch (\Exception $e) {}
+                    if ($data) {
+                        $code = $statusMap[$data['status']] ?? '';
+                        $sheet->setCellValue($col . $row, $code);
+                        if (isset($rekapCount[$code])) {
+                            $rekapCount[$code]++;
                         }
                     }
-                    $csv .= ",{$jam}";
+                } elseif ($sectionType === 'apel_pagi') {
+                    $pagiData = $matrix[$p->id][$dateStr]['pagi'] ?? null;
+                    if ($pagiData) {
+                        if ($pagiData['status'] === 'hadir' && $pagiData['jam'] && $jk) {
+                            $konversi = $penempatan === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;
+                            try {
+                                $t = Carbon::createFromFormat('H:i', substr($pagiData['jam'], 0, 5));
+                                $t->subMinutes($konversi);
+                                $sheet->setCellValue($col . $row, $t->format('H:i'));
+                                $rekapCount['H']++;
+                            } catch (\Exception $e) {
+                                $sheet->setCellValue($col . $row, $pagiData['jam']);
+                                $rekapCount['H']++;
+                            }
+                        } else {
+                            $code = $statusMap[$pagiData['status']] ?? '';
+                            $sheet->setCellValue($col . $row, $code);
+                            if (isset($rekapCount[$code])) {
+                                $rekapCount[$code]++;
+                            }
+                        }
+                    }
+                } elseif ($sectionType === 'apel_siang') {
+                    $soreData = $matrix[$p->id][$dateStr]['sore'] ?? null;
+                    if ($soreData) {
+                        if ($soreData['status'] === 'hadir' && $soreData['jam'] && $jk) {
+                            $konversi = $penempatan === 'induk' ? $jk->konversi_induk_pulang : $jk->konversi_desa_pulang;
+                            try {
+                                $t = Carbon::createFromFormat('H:i', substr($soreData['jam'], 0, 5));
+                                $t->addMinutes($konversi);
+                                $sheet->setCellValue($col . $row, $t->format('H:i'));
+                                $rekapCount['H']++;
+                            } catch (\Exception $e) {
+                                $sheet->setCellValue($col . $row, $soreData['jam']);
+                                $rekapCount['H']++;
+                            }
+                        } else {
+                            $code = $statusMap[$soreData['status']] ?? '';
+                            $sheet->setCellValue($col . $row, $code);
+                            if (isset($rekapCount[$code])) {
+                                $rekapCount[$code]++;
+                            }
+                        }
+                    }
                 }
+
+                // Center align date cells
+                $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             }
-            $csv .= "\n";
+
+            // Write rekap counts
+            for ($i = 0; $i < count($rekapCodes); $i++) {
+                $col = $colLetter($fixedCols + $daysInMonth + $i + 1);
+                $val = $rekapCount[$rekapCodes[$i]];
+                $sheet->setCellValue($col . $row, $val > 0 ? $val : '');
+                $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            }
+
+            $row++;
         }
 
-        $filename = "rekap_{$tipe}_{$namaBulan}_{$tahun}.csv";
-        return response($csv)
-            ->header('Content-Type', 'text/csv')
-            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+        // Apply borders to entire section (from header row to last data row)
+        $borderRange = "A{$startRow}:{$lastCol}" . ($row - 1);
+        $sheet->getStyle($borderRange)->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN);
+
+        return $row;
     }
 }
