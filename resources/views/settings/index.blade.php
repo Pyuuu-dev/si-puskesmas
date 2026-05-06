@@ -11,7 +11,7 @@
     </div>
 
     {{-- Settings Form --}}
-    <form method="POST" action="{{ route('settings.update') }}" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <form method="POST" action="{{ route('settings.update') }}" enctype="multipart/form-data" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         @csrf
 
         <div class="p-6 space-y-6">
@@ -54,6 +54,23 @@
                             <input type="email" id="email_instansi" name="email_instansi" value="{{ old('email_instansi', $settings['email_instansi']) }}"
                                    class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="info@puskesmas.go.id">
                          </div>
+                    </div>
+                    <div>
+                        <label for="logo_instansi" class="block text-sm font-medium text-gray-700 mb-1">Logo Instansi</label>
+                        <div class="flex items-center gap-4">
+                            @if($settings['logo_instansi'])
+                                <img src="{{ $settings['logo_instansi'] }}" alt="Logo" class="w-12 h-12 object-contain rounded-lg border border-gray-200">
+                            @else
+                                <div class="w-12 h-12 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5a2.25 2.25 0 0 0 2.25-2.25V5.25a2.25 2.25 0 0 0-2.25-2.25H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+                                    </svg>
+                                </div>
+                            @endif
+                            <input type="file" id="logo_instansi" name="logo_instansi" accept="image/*"
+                                   class="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Format: PNG, JPG, SVG, ICO. Maks 2MB. Digunakan sebagai favicon dan logo di halaman login.</p>
                     </div>
                 </div>
             </div>

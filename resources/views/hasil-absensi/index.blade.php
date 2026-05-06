@@ -44,17 +44,18 @@
         <p class="text-xs text-blue-700 font-medium mb-2">Aturan Konversi Jam:</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-600">
             <div>
-                <strong>Apel Pagi (Jam Masuk):</strong>
+                <strong>Apel Pagi (Jam Masuk) - Status Hadir:</strong>
                 <ul class="list-disc list-inside mt-0.5 space-y-0.5">
                     <li>Induk: Jam masuk dikurangi konversi masuk induk</li>
                     <li>Desa: Jam masuk dikurangi konversi masuk desa</li>
                 </ul>
             </div>
             <div>
-                <strong>Apel Siang (Jam Pulang):</strong>
+                <strong>Apel Siang (Jam Pulang) - Status Hadir/Izin:</strong>
                 <ul class="list-disc list-inside mt-0.5 space-y-0.5">
                     <li>Induk: Jam pulang ditambah konversi pulang induk</li>
                     <li>Desa: Jam pulang ditambah konversi pulang desa</li>
+                    <li>Izin: Jam izin + konversi pulang (jika ada jam)</li>
                 </ul>
             </div>
         </div>
@@ -127,7 +128,7 @@
                 <tbody class="divide-y divide-gray-100">
                     @foreach($pegawai as $p)
                         @php
-                            $penempatan = $p->penempatan ?? 'induk';
+                            $penempatanPegawai = $p->penempatan ?? 'induk';
                         @endphp
                         <tr class="hover:bg-gray-50/50">
                             <td class="sticky left-0 z-10 bg-white px-3 py-2 font-medium text-gray-800 border-r border-gray-200 whitespace-nowrap">
@@ -139,8 +140,8 @@
                                 </div>
                             </td>
                             <td class="px-2 py-2 text-center border-r border-gray-200">
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium {{ $penempatan === 'induk' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700' }}">
-                                    {{ ucfirst($penempatan) }}
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium {{ $penempatanPegawai === 'induk' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700' }}">
+                                    {{ ucfirst($penempatanPegawai) }}
                                 </span>
                             </td>
 
@@ -150,15 +151,43 @@
                                     $dayName = $dayMap[$date['day_of_week']] ?? null;
                                     $jk = $dayName ? ($jamKerjaData[$dayName] ?? null) : null;
 
-                                    $jamPagi = $matrix[$p->id][$date['tanggal']]['pagi'] ?? null;
-                                    $jamSore = $matrix[$p->id][$date['tanggal']]['sore'] ?? null;
+                                    $pagiData = $matrix[$p->id][$date['tanggal']]['pagi'] ?? null;
+                                    $soreData = $matrix[$p->id][$date['tanggal']]['sore'] ?? null;
+
+                                    $pagiStatus = $pagiData['status'] ?? null;
+                                    $soreStatus = $soreData['status'] ?? null;
+                                    $jamPagi = $pagiData['jam'] ?? null;
+                                    $jamSore = $soreData['jam'] ?? null;
 
                                     $konversiMasuk = '';
                                     $konversiPulang = '';
 
-                                    // Konversi jam masuk (apel pagi): jam input dikurangi konversi
-                                    if ($jamPagi && $jk) {
-                                        $konversiMenit = $penempatan === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;
+                                    // Status labels for non-hadir
+                                    $statusLabels = [
+                                        'izin' => 'I',
+                                        'sakit' => 'S',
+                                        'cuti' => 'C',
+                                        'cuti_bersalin' => 'CB',
+                                        'cuti_tahunan' => 'CT',
+                                        'dinas_luar' => 'DL',
+                                        'ijin_belajar' => 'IB',
+                                        'alfa' => 'TH',
+                                    ];
+
+                                    $statusColors = [
+                                        'izin' => 'text-yellow-700 bg-yellow-50',
+                                        'sakit' => 'text-orange-700 bg-orange-50',
+                                        'cuti' => 'text-rose-700 bg-rose-50',
+                                        'cuti_bersalin' => 'text-rose-700 bg-rose-50',
+                                        'cuti_tahunan' => 'text-rose-700 bg-rose-50',
+                                        'dinas_luar' => 'text-sky-600 bg-sky-50',
+                                        'ijin_belajar' => 'text-purple-700 bg-purple-50',
+                                        'alfa' => 'text-red-700 bg-red-50',
+                                    ];
+
+                                    // Konversi jam masuk (apel pagi): only for hadir status
+                                    if ($pagiStatus === 'hadir' && $jamPagi && $jk) {
+                                        $konversiMenit = $penempatanPegawai === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;
                                         if ($konversiMenit > 0) {
                                             try {
                                                 $time = \Carbon\Carbon::createFromFormat('H:i', substr($jamPagi, 0, 5));
@@ -172,9 +201,9 @@
                                         }
                                     }
 
-                                    // Konversi jam pulang (apel siang): jam input ditambah konversi
-                                    if ($jamSore && $jk) {
-                                        $konversiMenit = $penempatan === 'induk' ? $jk->konversi_induk_pulang : $jk->konversi_desa_pulang;
+                                    // Konversi jam pulang (apel siang): for hadir status
+                                    if ($soreStatus === 'hadir' && $jamSore && $jk) {
+                                        $konversiMenit = $penempatanPegawai === 'induk' ? $jk->konversi_induk_pulang : $jk->konversi_desa_pulang;
                                         if ($konversiMenit > 0) {
                                             try {
                                                 $time = \Carbon\Carbon::createFromFormat('H:i', substr($jamSore, 0, 5));
@@ -187,14 +216,35 @@
                                             $konversiPulang = substr($jamSore, 0, 5);
                                         }
                                     }
+
+                                    // Konversi for izin with jam (pulang awal)
+                                    $konversiIzinPulang = '';
+                                    if ($soreStatus === 'izin' && $jamSore && $jk) {
+                                        $konversiMenit = $penempatanPegawai === 'induk' ? $jk->konversi_induk_pulang : $jk->konversi_desa_pulang;
+                                        if ($konversiMenit > 0) {
+                                            try {
+                                                $time = \Carbon\Carbon::createFromFormat('H:i', substr($jamSore, 0, 5));
+                                                $time->addMinutes($konversiMenit);
+                                                $konversiIzinPulang = $time->format('H:i');
+                                            } catch (\Exception $e) {
+                                                $konversiIzinPulang = $jamSore;
+                                            }
+                                        } else {
+                                            $konversiIzinPulang = substr($jamSore, 0, 5);
+                                        }
+                                    }
                                 @endphp
 
                                 {{-- Masuk (Pagi) --}}
                                 <td class="px-0 py-0 text-center border-r border-gray-100 {{ $isLibur ? 'bg-red-50/50' : '' }}">
-                                    @if($jamPagi)
+                                    @if($pagiStatus === 'hadir' && $jamPagi)
                                         <div class="w-full h-10 flex flex-col items-center justify-center">
                                             <span class="text-[10px] text-gray-400">{{ substr($jamPagi, 0, 5) }}</span>
                                             <span class="text-xs font-bold text-green-700">{{ $konversiMasuk }}</span>
+                                        </div>
+                                    @elseif($pagiStatus && $pagiStatus !== 'hadir')
+                                        <div class="w-full h-10 flex items-center justify-center {{ $statusColors[$pagiStatus] ?? '' }}">
+                                            <span class="text-[10px] font-bold">{{ $statusLabels[$pagiStatus] ?? strtoupper(substr($pagiStatus, 0, 2)) }}</span>
                                         </div>
                                     @else
                                         <div class="w-full h-10"></div>
@@ -203,10 +253,19 @@
 
                                 {{-- Pulang (Sore) --}}
                                 <td class="px-0 py-0 text-center border-r border-gray-200 {{ $isLibur ? 'bg-red-50/50' : '' }}">
-                                    @if($jamSore)
+                                    @if($soreStatus === 'hadir' && $jamSore)
                                         <div class="w-full h-10 flex flex-col items-center justify-center">
                                             <span class="text-[10px] text-gray-400">{{ substr($jamSore, 0, 5) }}</span>
                                             <span class="text-xs font-bold text-blue-700">{{ $konversiPulang }}</span>
+                                        </div>
+                                    @elseif($soreStatus === 'izin' && $jamSore)
+                                        <div class="w-full h-10 flex flex-col items-center justify-center bg-yellow-50">
+                                            <span class="text-[10px] text-yellow-600">I: {{ substr($jamSore, 0, 5) }}</span>
+                                            <span class="text-xs font-bold text-yellow-700">{{ $konversiIzinPulang }}</span>
+                                        </div>
+                                    @elseif($soreStatus && $soreStatus !== 'hadir')
+                                        <div class="w-full h-10 flex items-center justify-center {{ $statusColors[$soreStatus] ?? '' }}">
+                                            <span class="text-[10px] font-bold">{{ $statusLabels[$soreStatus] ?? strtoupper(substr($soreStatus, 0, 2)) }}</span>
                                         </div>
                                     @else
                                         <div class="w-full h-10"></div>

@@ -7,6 +7,7 @@ use App\Http\Controllers\KodeKegiatanController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PerjalananDinasController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RekapController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -145,4 +146,13 @@ Route::middleware('auth')->group(function () {
     // Hasil Absensi (Konversi)
     Route::get('/hasil-absensi', [\App\Http\Controllers\HasilAbsensiController::class, 'index'])
         ->name('hasil-absensi');
+
+    // Rekap TL & PSW
+    Route::get('/rekap', [RekapController::class, 'index'])
+        ->name('rekap.index');
+    Route::get('/rekap/export', [RekapController::class, 'export'])
+        ->name('rekap.export');
+    Route::post('/rekap/config', [RekapController::class, 'updateConfig'])
+        ->middleware('role:super_admin')
+        ->name('rekap.config.update');
 });

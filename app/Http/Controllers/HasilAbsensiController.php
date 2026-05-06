@@ -59,16 +59,18 @@ class HasilAbsensiController extends Controller
         // Get jam kerja settings
         $jamKerjaData = JamKerja::all()->keyBy('hari');
 
-        // Get all absensi for this month
+        // Get ALL absensi for this month (not just hadir)
         $absensiData = Absensi::whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)
-            ->where('status', 'hadir')
             ->get();
 
-        // Build matrix: [user_id][tanggal][slot] = jam
+        // Build matrix: [user_id][tanggal][slot] = {status, jam}
         $matrix = [];
         foreach ($absensiData as $record) {
-            $matrix[$record->user_id][$record->tanggal->format('Y-m-d')][$record->slot] = $record->jam;
+            $matrix[$record->user_id][$record->tanggal->format('Y-m-d')][$record->slot] = [
+                'status' => $record->status,
+                'jam' => $record->jam,
+            ];
         }
 
         // Map day numbers to Indonesian day names

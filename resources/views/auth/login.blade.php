@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Login — {{ \App\Models\Setting::get('nama_instansi', 'SI Puskesmas') }}</title>
+    @php $logoInstansi = \App\Models\Setting::get('logo_instansi'); @endphp
+    @if($logoInstansi)
+        <link rel="icon" href="{{ $logoInstansi }}" type="image/png">
+        <link rel="shortcut icon" href="{{ $logoInstansi }}">
+    @endif
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -14,11 +19,17 @@
         <div class="w-full max-w-md">
             {{-- Logo / Header --}}
             <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm mb-5 shadow-lg">
-                    <svg class="w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21" />
-                    </svg>
-                </div>
+                @if($logoInstansi)
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm mb-5 shadow-lg overflow-hidden">
+                        <img src="{{ $logoInstansi }}" alt="Logo" class="w-12 h-12 object-contain">
+                    </div>
+                @else
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm mb-5 shadow-lg">
+                        <svg class="w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21" />
+                        </svg>
+                    </div>
+                @endif
                 <h1 class="text-2xl font-bold text-white tracking-tight">{{ \App\Models\Setting::get('nama_instansi', 'SI Puskesmas') }}</h1>
                 <p class="text-blue-100 mt-1 text-sm font-medium">Sistem Informasi</p>
             </div>

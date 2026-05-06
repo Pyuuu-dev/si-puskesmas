@@ -12,26 +12,34 @@
         </div>
 
         {{-- Month/Year Selector --}}
-        <form method="GET" action="{{ route('absensi') }}" class="flex items-center gap-2">
-            <select name="bulan" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                @foreach(range(1, 12) as $b)
-                    <option value="{{ $b }}" {{ $bulan == $b ? 'selected' : '' }}>
-                        {{ \Carbon\Carbon::createFromDate(null, $b, 1)->locale('id')->isoFormat('MMMM') }}
-                    </option>
-                @endforeach
-            </select>
-            <select name="tahun" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                @foreach(range(now()->year - 5, now()->year + 5) as $y)
-                    <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
-                @endforeach
-            </select>
-            <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+        <div class="flex flex-wrap items-center gap-2">
+            <form method="GET" action="{{ route('absensi') }}" class="flex items-center gap-2">
+                <select name="bulan" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    @foreach(range(1, 12) as $b)
+                        <option value="{{ $b }}" {{ $bulan == $b ? 'selected' : '' }}>
+                            {{ \Carbon\Carbon::createFromDate(null, $b, 1)->locale('id')->isoFormat('MMMM') }}
+                        </option>
+                    @endforeach
+                </select>
+                <select name="tahun" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    @foreach(range(now()->year - 5, now()->year + 5) as $y)
+                        <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                    Tampilkan
+                </button>
+            </form>
+            <a href="{{ route('rekap.export', ['bulan' => $bulan, 'tahun' => $tahun]) }}" class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
-                Tampilkan
-            </button>
-        </form>
+                Export TL/PSW
+            </a>
+        </div>
     </div>
 
     {{-- Legend --}}
@@ -63,7 +71,7 @@
                                 <div class="text-[9px] font-normal text-gray-400">{{ $date['nama_hari'] }}</div>
                             </th>
                         @endforeach
-                        <th colspan="8" class="px-2 py-2 text-center font-semibold text-gray-700 bg-gray-100 border-l-2 border-gray-300" rowspan="2">
+                        <th colspan="8" class="px-2 py-1 text-center font-semibold text-gray-700 bg-gray-100 border-l-2 border-gray-300">
                             Rekap
                         </th>
                     </tr>
@@ -73,6 +81,14 @@
                             <th class="px-1 py-1 text-center font-medium border-r border-gray-100 {{ $date['is_weekend'] ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:28px;">P</th>
                             <th class="px-1 py-1 text-center font-medium border-r border-gray-200 {{ $date['is_weekend'] ? 'bg-red-50 text-red-500' : 'text-gray-500' }}" style="min-width:28px;">S</th>
                         @endforeach
+                        <th class="px-1 py-1 text-center font-medium text-green-700 bg-green-50 border-l-2 border-gray-300" title="Hadir">H</th>
+                        <th class="px-1 py-1 text-center font-medium text-yellow-700 bg-yellow-50" title="Izin">I</th>
+                        <th class="px-1 py-1 text-center font-medium text-orange-700 bg-orange-50" title="Sakit">S</th>
+                        <th class="px-1 py-1 text-center font-medium text-rose-700 bg-rose-50" title="Cuti Bersalin">CB</th>
+                        <th class="px-1 py-1 text-center font-medium text-rose-700 bg-rose-50" title="Cuti Tahunan">CT</th>
+                        <th class="px-1 py-1 text-center font-medium text-sky-600 bg-sky-50" title="Dinas Luar">DL</th>
+                        <th class="px-1 py-1 text-center font-medium text-purple-700 bg-purple-50" title="Ijin Belajar">IB</th>
+                        <th class="px-1 py-1 text-center font-medium text-red-700 bg-red-50" title="Tidak Hadir">TH</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -138,7 +154,7 @@
                                         >
                                             <div class="w-full h-8 flex flex-col items-center justify-center text-[10px] font-bold">
                                                 <span>{{ $cellLabel }}</span>
-                                                @if($jam && $status === 'hadir')
+                                                @if($jam && in_array($status, ['hadir', 'izin']))
                                                     <span class="text-[8px] font-normal leading-none opacity-75">{{ $jam }}</span>
                                                 @endif
                                             </div>
@@ -262,6 +278,12 @@
                         <label class="block text-xs font-medium text-green-700 mb-1">Jam Kehadiran:</label>
                         <input type="time" x-model="modalJam" class="w-full text-sm border-green-300 rounded-lg px-3 py-2 focus:border-green-500 focus:ring-green-500">
                     </div>
+
+                    <div x-show="modalStatus === 'izin'" x-transition class="bg-yellow-50 rounded-lg p-3">
+                        <label class="block text-xs font-medium text-yellow-700 mb-1">Jam Izin (pulang awal):</label>
+                        <input type="time" x-model="modalJam" class="w-full text-sm border-yellow-300 rounded-lg px-3 py-2 focus:border-yellow-500 focus:ring-yellow-500">
+                        <p class="text-[10px] text-yellow-600 mt-1">Isi jam jika pegawai izin pulang lebih awal. Kosongkan jika izin seharian.</p>
+                    </div>
                 </div>
 
                 <div class="flex justify-between gap-3 mt-6">
@@ -316,7 +338,7 @@ document.addEventListener('alpine:init', () => {
                     tanggal: this.modalTanggal,
                     slot: this.modalSlot,
                     status: this.modalStatus,
-                    jam: this.modalStatus === 'hadir' ? this.modalJam : null,
+                    jam: (this.modalStatus === 'hadir' || this.modalStatus === 'izin') ? this.modalJam : null,
                 });
                 const data = await res.json();
                 if (data.success) {

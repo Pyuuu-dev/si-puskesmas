@@ -22,6 +22,7 @@ class SettingController extends Controller
             'backup_jam_1' => Setting::get('backup_jam_1', '08:00'),
             'backup_jam_2' => Setting::get('backup_jam_2', '14:00'),
             'backup_jam_3' => Setting::get('backup_jam_3', '20:00'),
+            'logo_instansi' => Setting::get('logo_instansi', ''),
         ];
 
         $order = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
@@ -44,9 +45,20 @@ class SettingController extends Controller
             'backup_jam_1' => 'nullable|string|max:5',
             'backup_jam_2' => 'nullable|string|max:5',
             'backup_jam_3' => 'nullable|string|max:5',
+            'logo_instansi' => 'nullable|image|mimes:png,jpg,jpeg,svg,ico|max:2048',
         ]);
 
-        foreach ($validated as $key => $value) {
+        // Handle logo upload
+        if ($request->hasFile('logo_instansi')) {
+            $file = $request->file('logo_instansi');
+            $filename = 'logo_instansi.' . $file->getClientOriginalExtension();
+            $file->move(public_path('images'), $filename);
+            Setting::set('logo_instansi', '/images/' . $filename);
+        }
+
+        // Save other settings (exclude logo_instansi from loop since it's handled above)
+        $settingsToSave = collect($validated)->except('logo_instansi')->toArray();
+        foreach ($settingsToSave as $key => $value) {
             Setting::set($key, $value);
         }
 
