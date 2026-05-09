@@ -310,7 +310,6 @@ class RekapController extends Controller
         $namaBulan = strtoupper($startDate->locale('id')->isoFormat('MMMM'));
         $namaInstansi = Setting::get('nama_instansi', 'UPTD Puskesmas');
 
-        // Data sources
         $pegawai = User::where('role', '!=', 'super_admin')
             ->orderBy('urutan')->orderBy('name')->get();
 
@@ -324,21 +323,15 @@ class RekapController extends Controller
             ->keyBy(fn($i) => $i->tanggal->format('Y-m-d'));
 
         $dayMap = [1 => 'senin', 2 => 'selasa', 3 => 'rabu', 4 => 'kamis', 5 => 'jumat', 6 => 'sabtu'];
+        $namaHariMap = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
-        // Status mapping
         $statusMap = [
-            'hadir' => 'H',
-            'izin' => 'I',
-            'sakit' => 'S',
-            'cuti' => 'CB',
-            'cuti_bersalin' => 'CB',
-            'cuti_tahunan' => 'C',
-            'dinas_luar' => 'DL',
-            'ijin_belajar' => 'IB',
-            'alfa' => 'TK',
+            'hadir' => 'H', 'izin' => 'I', 'sakit' => 'S',
+            'cuti' => 'CB', 'cuti_bersalin' => 'CB', 'cuti_tahunan' => 'CT',
+            'dinas_luar' => 'DL', 'ijin_belajar' => 'IB', 'alfa' => 'TK',
         ];
 
-        // Build matrix: [user_id][date_str][slot] = {status, jam}
+        // Build matrix
         $matrix = [];
         foreach ($absensiData as $record) {
             $matrix[$record->user_id][$record->tanggal->format('Y-m-d')][$record->slot] = [
@@ -347,249 +340,191 @@ class RekapController extends Controller
             ];
         }
 
-        // Determine holidays/sundays per day
+        // Holidays
         $holidays = [];
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $date = Carbon::createFromDate($tahun, $bulan, $d);
             $dateStr = $date->format('Y-m-d');
             $isLibur = $date->isSunday();
-            if (isset($tanggalLibur[$dateStr])) {
-                $isLibur = $tanggalLibur[$dateStr]->is_libur;
-            }
+            if (isset($tanggalLibur[$dateStr])) $isLibur = $tanggalLibur[$dateStr]->is_libur;
             $holidays[$d] = $isLibur;
         }
 
-        // Create spreadsheet
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('REKAP ABSEN');
+        $colLetter = fn($n) => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($n);
 
-        // Rekap status codes
-        $rekapCodes = ['H', 'S', 'I', 'C', 'DL', 'CB', 'IB', 'TK'];
-
-        // Fixed columns: NO, NAMA, NIP, PANGKAT/GOL, ST/S/F, JABATAN = 6 cols
-        $fixedCols = 6;
-        $totalCols = $fixedCols + $daysInMonth + count($rekapCodes);
-
-        // Helper: get column letter from number (1-based)
-        $colLetter = function ($colNum) {
-            return \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colNum);
-        };
-
+        // Column layout:
+        // A=NO, B=NAMA, C=NIP, D=PANGKAT/GOL, E=ST/S/F, F=JABATAN, G=PENEMPATAN
+        // Then per day: 2 columns (P, S) = daysInMonth * 2
+        // Then rekap: H, I, S, CB, CT, DL, IB, TK = 8 cols
+        $fixedCols = 7;
+        $dateCols = $daysInMonth * 2;
+        $rekapCodes = ['H', 'I', 'S', 'CB', 'CT', 'DL', 'IB', 'TK'];
+        $totalCols = $fixedCols + $dateCols + count($rekapCodes);
         $lastCol = $colLetter($totalCols);
 
-        // ============================================================
-        // SECTION 1: KEHADIRAN
-        // ============================================================
-        $currentRow = $this->writeSection(
-            $sheet, 1, 'KEHADIRAN', $namaInstansi, $namaBulan, $tahun, $bulan,
-            $daysInMonth, $fixedCols, $rekapCodes, $colLetter, $lastCol, $totalCols,
-            $pegawai, $matrix, $holidays, $dayMap, $jamKerjaData, $statusMap, 'kehadiran'
-        );
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('REKAP ABSENSI');
 
-        // 5 blank rows
-        $currentRow += 5;
+        $row = 1;
 
-        // ============================================================
-        // SECTION 2: APEL PAGI
-        // ============================================================
-        $currentRow = $this->writeSection(
-            $sheet, $currentRow, 'APEL PAGI', $namaInstansi, $namaBulan, $tahun, $bulan,
-            $daysInMonth, $fixedCols, $rekapCodes, $colLetter, $lastCol, $totalCols,
-            $pegawai, $matrix, $holidays, $dayMap, $jamKerjaData, $statusMap, 'apel_pagi'
-        );
-
-        // 5 blank rows
-        $currentRow += 5;
-
-        // ============================================================
-        // SECTION 3: APEL SIANG
-        // ============================================================
-        $currentRow = $this->writeSection(
-            $sheet, $currentRow, 'APEL SIANG', $namaInstansi, $namaBulan, $tahun, $bulan,
-            $daysInMonth, $fixedCols, $rekapCodes, $colLetter, $lastCol, $totalCols,
-            $pegawai, $matrix, $holidays, $dayMap, $jamKerjaData, $statusMap, 'apel_siang'
-        );
-
-        // Auto-width columns
-        for ($i = 1; $i <= $totalCols; $i++) {
-            $sheet->getColumnDimension($colLetter($i))->setAutoSize(true);
-        }
-
-        // Generate file
-        $namaBulanFile = $startDate->locale('id')->isoFormat('MMMM');
-        $filename = "REKAP_ABSEN_{$namaBulan}_{$tahun}.xlsx";
-        $tempFile = tempnam(sys_get_temp_dir(), 'rekap') . '.xlsx';
-
-        $writer = new Xlsx($spreadsheet);
-        $writer->save($tempFile);
-
-        return response()->download($tempFile, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ])->deleteFileAfterSend(true);
-    }
-
-    /**
-     * Write a section (Kehadiran/Apel Pagi/Apel Siang) to the sheet
-     */
-    private function writeSection(
-        $sheet, $startRow, $sectionLabel, $namaInstansi, $namaBulan, $tahun, $bulan,
-        $daysInMonth, $fixedCols, $rekapCodes, $colLetter, $lastCol, $totalCols,
-        $pegawai, $matrix, $holidays, $dayMap, $jamKerjaData, $statusMap, $sectionType
-    ) {
-        $row = $startRow;
-
-        // Row 1: Title
-        $sheet->setCellValue('A' . $row, "REKAPITULASI ABSENSI KEHADIRAN, APEL PAGI DAN APEL SIANG STAF {$namaInstansi}");
+        // === HEADER ===
+        $sheet->setCellValue('A' . $row, "REKAPITULASI ABSENSI KEHADIRAN, APEL PAGI DAN APEL SIANG");
         $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
-        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(13);
         $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $row++;
 
-        // Row 2: Dinas
-        $sheet->setCellValue('A' . $row, "DINAS / BADAN / KANTOR {$namaInstansi}");
+        $sheet->setCellValue('A' . $row, strtoupper($namaInstansi));
         $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
-        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(11);
         $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $row++;
 
-        // Row 3: Bulan
         $sheet->setCellValue('A' . $row, "BULAN {$namaBulan} {$tahun}");
         $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
-        $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(11);
         $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $row++;
+        $row++; // blank row
 
-        // Row 4: Headers
-        $headers = ['NO', 'NAMA', 'NIP', 'PANGKAT/GOL', 'ST/S/F', 'JABATAN'];
-        for ($i = 0; $i < count($headers); $i++) {
-            $sheet->setCellValue($colLetter($i + 1) . $row, $headers[$i]);
-        }
-        // Date columns
+        // === TABLE HEADER ROW 1: Date numbers (merged P+S) ===
+        $headerRow1 = $row;
+        $sheet->setCellValue('A' . $row, 'NO');
+        $sheet->setCellValue('B' . $row, 'NAMA');
+        $sheet->setCellValue('C' . $row, 'NIP');
+        $sheet->setCellValue('D' . $row, 'PANGKAT/GOL');
+        $sheet->setCellValue('E' . $row, 'ST/S/F');
+        $sheet->setCellValue('F' . $row, 'JABATAN');
+        $sheet->setCellValue('G' . $row, 'PENEMPATAN');
+
+        // Date headers (merged 2 cols per day)
         for ($d = 1; $d <= $daysInMonth; $d++) {
-            $col = $colLetter($fixedCols + $d);
-            $sheet->setCellValue($col . $row, $d);
-            $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $date = Carbon::createFromDate($tahun, $bulan, $d);
+            $colStart = $fixedCols + ($d - 1) * 2 + 1;
+            $colEnd = $colStart + 1;
+            $sheet->setCellValue($colLetter($colStart) . $row, $d);
+            $sheet->mergeCells($colLetter($colStart) . $row . ':' . $colLetter($colEnd) . $row);
+            $sheet->getStyle($colLetter($colStart) . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-            // Red background for holidays/sundays
             if ($holidays[$d]) {
-                $sheet->getStyle($col . $row)->getFill()
-                    ->setFillType(Fill::FILL_SOLID)
-                    ->getStartColor()->setRGB('FF0000');
-                $sheet->getStyle($col . $row)->getFont()->getColor()->setRGB('FFFFFF');
+                $sheet->getStyle($colLetter($colStart) . $row . ':' . $colLetter($colEnd) . $row)->getFill()
+                    ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FF4444');
+                $sheet->getStyle($colLetter($colStart) . $row . ':' . $colLetter($colEnd) . $row)->getFont()->getColor()->setRGB('FFFFFF');
             }
         }
-        // Rekap columns
+
+        // Rekap header
+        $rekapStart = $fixedCols + $dateCols + 1;
         for ($i = 0; $i < count($rekapCodes); $i++) {
-            $col = $colLetter($fixedCols + $daysInMonth + $i + 1);
+            $col = $colLetter($rekapStart + $i);
             $sheet->setCellValue($col . $row, $rekapCodes[$i]);
             $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         }
-        // Bold header row
+
         $sheet->getStyle("A{$row}:{$lastCol}{$row}")->getFont()->setBold(true);
         $row++;
 
-        // Row 5: Sub-header under NAMA column
-        $sheet->setCellValue('B' . $row, strtoupper($sectionLabel));
-        $sheet->getStyle('B' . $row)->getFont()->setBold(true);
+        // === TABLE HEADER ROW 2: Day names + P/S sub-headers ===
+        $headerRow2 = $row;
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $date = Carbon::createFromDate($tahun, $bulan, $d);
+            $namaHari = $namaHariMap[$date->dayOfWeek];
+            $colP = $fixedCols + ($d - 1) * 2 + 1;
+            $colS = $colP + 1;
+            $sheet->setCellValue($colLetter($colP) . $row, 'P');
+            $sheet->setCellValue($colLetter($colS) . $row, 'S');
+            $sheet->getStyle($colLetter($colP) . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle($colLetter($colS) . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            if ($holidays[$d]) {
+                $sheet->getStyle($colLetter($colP) . $row . ':' . $colLetter($colS) . $row)->getFill()
+                    ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFCCCC');
+            }
+        }
+        $sheet->getStyle("A{$row}:{$lastCol}{$row}")->getFont()->setBold(true)->setSize(8);
         $row++;
 
-        // Data rows
-        $dataStartRow = $row;
+        // === DATA ROWS ===
         foreach ($pegawai as $idx => $p) {
             $penempatan = $p->penempatan ?? 'induk';
             $sheet->setCellValue('A' . $row, $idx + 1);
             $sheet->setCellValue('B' . $row, $p->name);
-            $sheet->setCellValue('C' . $row, $p->nip ?? '-');
-            $sheet->setCellValue('D' . $row, $p->pangkat ?? '-');
-            $sheet->setCellValue('E' . $row, $p->status_pegawai ?? '-');
-            $sheet->setCellValue('F' . $row, $p->jabatan ?? '-');
+            $sheet->setCellValue('C' . $row, $p->nip ?? '');
+            $sheet->setCellValue('D' . $row, $p->pangkat_golongan ?? '');
+            $sheet->setCellValue('E' . $row, $p->status_pegawai ?? '');
+            $sheet->setCellValue('F' . $row, $p->jabatan ?? '');
+            $sheet->setCellValue('G' . $row, ucfirst($penempatan));
 
-            // Rekap counters
             $rekapCount = array_fill_keys($rekapCodes, 0);
 
             for ($d = 1; $d <= $daysInMonth; $d++) {
                 $date = Carbon::createFromDate($tahun, $bulan, $d);
                 $dateStr = $date->format('Y-m-d');
-                $col = $colLetter($fixedCols + $d);
-
                 $dayOfWeek = $date->dayOfWeek;
                 $dayName = $dayMap[$dayOfWeek] ?? null;
                 $jk = $dayName ? ($jamKerjaData[$dayName] ?? null) : null;
 
-                // Holiday column styling
+                $colP = $fixedCols + ($d - 1) * 2 + 1;
+                $colS = $colP + 1;
+
+                // Holiday styling
                 if ($holidays[$d]) {
-                    $sheet->getStyle($col . $row)->getFill()
-                        ->setFillType(Fill::FILL_SOLID)
-                        ->getStartColor()->setRGB('FFCCCC');
+                    $sheet->getStyle($colLetter($colP) . $row . ':' . $colLetter($colS) . $row)->getFill()
+                        ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF0F0');
                 }
 
-                if ($sectionType === 'kehadiran') {
-                    // Get status from pagi slot (primary) or sore slot
-                    $pagiData = $matrix[$p->id][$dateStr]['pagi'] ?? null;
-                    $soreData = $matrix[$p->id][$dateStr]['sore'] ?? null;
-                    $data = $pagiData ?? $soreData;
-
-                    if ($data) {
-                        $code = $statusMap[$data['status']] ?? '';
-                        $sheet->setCellValue($col . $row, $code);
-                        if (isset($rekapCount[$code])) {
-                            $rekapCount[$code]++;
-                        }
-                    }
-                } elseif ($sectionType === 'apel_pagi') {
-                    $pagiData = $matrix[$p->id][$dateStr]['pagi'] ?? null;
-                    if ($pagiData) {
-                        if ($pagiData['status'] === 'hadir' && $pagiData['jam'] && $jk) {
+                // PAGI
+                $pagiData = $matrix[$p->id][$dateStr]['pagi'] ?? null;
+                if ($pagiData) {
+                    $status = $pagiData['status'];
+                    $code = $statusMap[$status] ?? '';
+                    if ($status === 'hadir' && $pagiData['jam']) {
+                        $jam = substr($pagiData['jam'], 0, 5);
+                        if ($jk) {
                             $konversi = $penempatan === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;
                             try {
-                                $t = Carbon::createFromFormat('H:i', substr($pagiData['jam'], 0, 5));
+                                $t = Carbon::createFromFormat('H:i', $jam);
                                 $t->subMinutes($konversi);
-                                $sheet->setCellValue($col . $row, $t->format('H:i'));
-                                $rekapCount['H']++;
-                            } catch (\Exception $e) {
-                                $sheet->setCellValue($col . $row, $pagiData['jam']);
-                                $rekapCount['H']++;
-                            }
-                        } else {
-                            $code = $statusMap[$pagiData['status']] ?? '';
-                            $sheet->setCellValue($col . $row, $code);
-                            if (isset($rekapCount[$code])) {
-                                $rekapCount[$code]++;
-                            }
+                                $jam = $t->format('H:i');
+                            } catch (\Exception $e) {}
                         }
+                        $sheet->setCellValue($colLetter($colP) . $row, $jam);
+                    } else {
+                        $sheet->setCellValue($colLetter($colP) . $row, $code);
                     }
-                } elseif ($sectionType === 'apel_siang') {
-                    $soreData = $matrix[$p->id][$dateStr]['sore'] ?? null;
-                    if ($soreData) {
-                        if ($soreData['status'] === 'hadir' && $soreData['jam'] && $jk) {
+                    if (isset($rekapCount[$code])) $rekapCount[$code]++;
+                }
+
+                // SORE
+                $soreData = $matrix[$p->id][$dateStr]['sore'] ?? null;
+                if ($soreData) {
+                    $status = $soreData['status'];
+                    $code = $statusMap[$status] ?? '';
+                    if ($status === 'hadir' && $soreData['jam']) {
+                        $jam = substr($soreData['jam'], 0, 5);
+                        if ($jk) {
                             $konversi = $penempatan === 'induk' ? $jk->konversi_induk_pulang : $jk->konversi_desa_pulang;
                             try {
-                                $t = Carbon::createFromFormat('H:i', substr($soreData['jam'], 0, 5));
+                                $t = Carbon::createFromFormat('H:i', $jam);
                                 $t->addMinutes($konversi);
-                                $sheet->setCellValue($col . $row, $t->format('H:i'));
-                                $rekapCount['H']++;
-                            } catch (\Exception $e) {
-                                $sheet->setCellValue($col . $row, $soreData['jam']);
-                                $rekapCount['H']++;
-                            }
-                        } else {
-                            $code = $statusMap[$soreData['status']] ?? '';
-                            $sheet->setCellValue($col . $row, $code);
-                            if (isset($rekapCount[$code])) {
-                                $rekapCount[$code]++;
-                            }
+                                $jam = $t->format('H:i');
+                            } catch (\Exception $e) {}
                         }
+                        $sheet->setCellValue($colLetter($colS) . $row, $jam);
+                    } else {
+                        $sheet->setCellValue($colLetter($colS) . $row, $code);
                     }
                 }
 
-                // Center align date cells
-                $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                // Center align
+                $sheet->getStyle($colLetter($colP) . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle($colLetter($colS) . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             }
 
-            // Write rekap counts
+            // Rekap
             for ($i = 0; $i < count($rekapCodes); $i++) {
-                $col = $colLetter($fixedCols + $daysInMonth + $i + 1);
+                $col = $colLetter($rekapStart + $i);
                 $val = $rekapCount[$rekapCodes[$i]];
                 $sheet->setCellValue($col . $row, $val > 0 ? $val : '');
                 $sheet->getStyle($col . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -598,11 +533,85 @@ class RekapController extends Controller
             $row++;
         }
 
-        // Apply borders to entire section (from header row to last data row)
-        $borderRange = "A{$startRow}:{$lastCol}" . ($row - 1);
-        $sheet->getStyle($borderRange)->getBorders()->getAllBorders()
+        // === BORDERS ===
+        $dataEndRow = $row - 1;
+        $sheet->getStyle("A{$headerRow1}:{$lastCol}{$dataEndRow}")->getBorders()->getAllBorders()
             ->setBorderStyle(Border::BORDER_THIN);
 
-        return $row;
+        $row += 2;
+
+        // === LEGEND ===
+        $sheet->setCellValue('A' . $row, 'KETERANGAN:');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+
+        $legends = [
+            ['H', 'Hadir', '4CAF50'],
+            ['I', 'Izin', 'FFC107'],
+            ['S', 'Sakit', 'FF9800'],
+            ['CB', 'Cuti Bersalin', 'E91E63'],
+            ['CT', 'Cuti Tahunan', 'E91E63'],
+            ['DL', 'Dinas Luar', '03A9F4'],
+            ['IB', 'Ijin Belajar', '9C27B0'],
+            ['TK', 'Tidak Hadir / Alfa', 'F44336'],
+        ];
+
+        $sheet->setCellValue('A' . $row, 'P = Apel Pagi (Jam Masuk setelah konversi)');
+        $sheet->setCellValue('D' . $row, 'S = Apel Siang (Jam Pulang setelah konversi)');
+        $row++;
+
+        foreach ($legends as $i => $leg) {
+            $col = ($i < 4) ? 'A' : 'D';
+            $r = ($i < 4) ? $row + $i : $row + $i - 4;
+            $sheet->setCellValue($col . $r, "{$leg[0]} = {$leg[1]}");
+            $sheet->getStyle($col . $r)->getFont()->getColor()->setRGB($leg[2]);
+        }
+
+        $row += 5;
+        $sheet->setCellValue('A' . $row, 'Kolom merah = Hari Libur / Minggu');
+        $sheet->getStyle('A' . $row)->getFont()->setItalic(true)->getColor()->setRGB('FF0000');
+
+        // === COLUMN WIDTHS ===
+        $sheet->getColumnDimension('A')->setWidth(4);
+        $sheet->getColumnDimension('B')->setWidth(25);
+        $sheet->getColumnDimension('C')->setWidth(20);
+        $sheet->getColumnDimension('D')->setWidth(15);
+        $sheet->getColumnDimension('E')->setWidth(6);
+        $sheet->getColumnDimension('F')->setWidth(20);
+        $sheet->getColumnDimension('G')->setWidth(10);
+
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $colP = $fixedCols + ($d - 1) * 2 + 1;
+            $colS = $colP + 1;
+            $sheet->getColumnDimension($colLetter($colP))->setWidth(6);
+            $sheet->getColumnDimension($colLetter($colS))->setWidth(6);
+        }
+        for ($i = 0; $i < count($rekapCodes); $i++) {
+            $sheet->getColumnDimension($colLetter($rekapStart + $i))->setWidth(4);
+        }
+
+        // Vertical alignment
+        $sheet->getStyle("A{$headerRow1}:{$lastCol}{$dataEndRow}")->getAlignment()
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        // Font size for data
+        $sheet->getStyle("A" . ($headerRow2 + 1) . ":{$lastCol}{$dataEndRow}")->getFont()->setSize(8);
+
+        // Print settings
+        $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
+        $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+        $sheet->getPageSetup()->setFitToWidth(1);
+        $sheet->getPageSetup()->setFitToHeight(0);
+
+        // Generate file
+        $filename = "REKAP_ABSENSI_{$namaBulan}_{$tahun}.xlsx";
+        $tempFile = tempnam(sys_get_temp_dir(), 'rekap') . '.xlsx';
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
 }
