@@ -40,6 +40,7 @@
     {{-- Legend --}}
     <div class="flex flex-wrap gap-3 text-xs">
         <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-green-500"></span> Hadir (H)</span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-400"></span> Tidak Apel (TA)</span>
         <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-yellow-500"></span> Izin (I)</span>
         <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-orange-500"></span> Sakit (S)</span>
         <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-rose-700"></span> Cuti Bersalin (CB)</span>
@@ -107,7 +108,11 @@
                                         $cellData = $matrix[$p->id][$date['tanggal']][$slot] ?? null;
                                         $status = $cellData['status'] ?? null;
                                         $jam = $cellData['jam'] ?? null;
+                                        $keterangan = $cellData['keterangan'] ?? null;
                                         if ($status && isset($totals[$status])) $totals[$status]++;
+
+                                        // Deteksi Tidak Apel
+                                        $isTidakApel = ($status === 'hadir' && $keterangan === 'tidak_apel');
 
                                         $cellColors = [
                                             'hadir' => 'bg-green-100 text-green-700',
@@ -131,10 +136,28 @@
                                             'ijin_belajar' => 'IB',
                                             'alfa' => 'TH',
                                         ];
-                                        $cellClass = $status ? ($cellColors[$status] ?? 'bg-gray-100 text-gray-700') : ($date['is_weekend'] ? 'bg-red-50/50' : '');
-                                        $cellLabel = $status ? ($cellLabels[$status] ?? strtoupper(substr($status, 0, 1))) : '';
+
+                                        // Override untuk Tidak Apel
+                                        if ($isTidakApel) {
+                                            $cellClass = 'bg-gray-200 text-gray-600';
+                                            $cellLabel = 'TA';
+                                        } else {
+                                            $cellClass = $status ? ($cellColors[$status] ?? 'bg-gray-100 text-gray-700') : ($date['is_weekend'] ? 'bg-red-50/50' : '');
+                                            $cellLabel = $status ? ($cellLabels[$status] ?? strtoupper(substr($status, 0, 1))) : '';
+                                        }
+
                                         $borderClass = $slot === 'sore' ? 'border-r border-gray-200' : 'border-r border-gray-100';
                                         $isLibur = $date['is_weekend'];
+
+                                        // Ambil data kedua slot untuk modal
+                                        $pagiData = $matrix[$p->id][$date['tanggal']]['pagi'] ?? null;
+                                        $soreData = $matrix[$p->id][$date['tanggal']]['sore'] ?? null;
+                                        $pagiStatus = $pagiData['status'] ?? '';
+                                        $pagiJam = $pagiData['jam'] ?? '';
+                                        $pagiKet = $pagiData['keterangan'] ?? '';
+                                        $soreStatus = $soreData['status'] ?? '';
+                                        $soreJam = $soreData['jam'] ?? '';
+                                        $soreKet = $soreData['keterangan'] ?? '';
                                     @endphp
 
                                     @if($isLibur && !$status)
@@ -144,12 +167,12 @@
                                         </td>
                                     @else
                                         <td class="px-0 py-0 text-center {{ $borderClass }} cursor-pointer hover:opacity-80 {{ $cellClass }}"
-                                            @click="openModal({{ $p->id }}, '{{ addslashes($p->name) }}', '{{ $date['tanggal'] }}', '{{ $slot }}', '{{ $status ?? '' }}', '{{ $jam ?? '' }}')"
-                                            title="{{ $status ? ucfirst(str_replace('_', ' ', $status)) . ($jam ? ' - ' . $jam : '') : 'Klik untuk input' }}"
+                                            @click="openModal({{ $p->id }}, '{{ addslashes($p->name) }}', '{{ $date['tanggal'] }}', '{{ $pagiStatus }}', '{{ $pagiJam }}', '{{ $pagiKet }}', '{{ $soreStatus }}', '{{ $soreJam }}', '{{ $soreKet }}')"
+                                            title="{{ $isTidakApel ? 'Tidak Apel - ' . $jam : ($status ? ucfirst(str_replace('_', ' ', $status)) . ($jam ? ' - ' . $jam : '') : 'Klik untuk input') }}"
                                         >
                                             <div class="w-full h-8 flex flex-col items-center justify-center text-[10px] font-bold">
                                                 <span>{{ $cellLabel }}</span>
-                                                @if($jam && in_array($status, ['hadir', 'izin']))
+                                                @if($jam && ($isTidakApel || in_array($status, ['hadir', 'izin'])))
                                                     <span class="text-[8px] font-normal leading-none opacity-75">{{ $jam }}</span>
                                                 @endif
                                             </div>
@@ -196,35 +219,128 @@
     {{-- Kelola Tanggal Libur (admin/kepala) --}}
     @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
     <div class="bg-white rounded-xl border border-gray-200 p-4" x-data="tanggalManager()">
-        <h3 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+        <h3 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
             <svg class="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
             Kelola Hari Libur & Catatan Tanggal
         </h3>
-        <div class="bg-gray-50 rounded-lg p-4">
+
+        {{-- Form Tambah / Edit --}}
+        <div class="bg-gray-50 rounded-lg p-4 mb-4" id="form-hari-libur">
+            <p class="text-xs font-semibold text-gray-600 mb-3" x-text="editMode ? '✏️ Edit Hari Libur' : '➕ Tambah Hari Libur'"></p>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Tanggal</label>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Tanggal</label>
                     <input type="date" x-model="tanggal" class="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Status</label>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Status</label>
                     <select x-model="isLibur" class="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="1">Libur</option>
-                        <option value="0">Tidak Libur (Masuk)</option>
+                        <option value="0">Masuk (Tidak Libur)</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Keterangan</label>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Keterangan</label>
                     <input type="text" x-model="keterangan" placeholder="cth: Hari Raya Idul Fitri" class="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
-                <div class="flex items-end">
-                    <button @click="simpanTanggal()" class="inline-flex items-center justify-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors">
-                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
-                        Simpan
+                <div class="flex items-end gap-2">
+                    <button @click="simpanTanggal()" :disabled="!tanggal"
+                        class="flex-1 inline-flex items-center justify-center px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        :class="editMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'">
+                        <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                        </svg>
+                        <span x-text="editMode ? 'Update' : 'Tambah'"></span>
+                    </button>
+                    <button x-show="editMode" @click="batalEdit()"
+                        class="inline-flex items-center justify-center px-3 py-2 bg-gray-400 hover:bg-gray-500 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
                     </button>
                 </div>
             </div>
-            <p class="text-[10px] text-gray-400 mt-2">Gunakan fitur ini untuk menandai tanggal tertentu sebagai libur (selain Minggu) atau mengembalikan hari libur menjadi hari kerja.</p>
+            <p class="text-[10px] text-gray-500 mt-2">Gunakan fitur ini untuk menandai tanggal tertentu sebagai libur (selain Minggu) atau mengembalikan hari libur menjadi hari kerja.</p>
+        </div>
+        {{-- Tabel Daftar Hari Libur --}}
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-700">Tanggal</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-700">Hari</th>
+                            <th class="px-4 py-3 text-center font-semibold text-gray-700">Status</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-700">Keterangan</th>
+                            <th class="px-4 py-3 text-center font-semibold text-gray-700">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($tanggalLibur as $tgl)
+                            @php
+                                $tanggalCarbon = \Carbon\Carbon::parse($tgl->tanggal);
+                                $namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][$tanggalCarbon->dayOfWeek];
+                            @endphp
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 text-gray-900 font-medium">
+                                    {{ $tanggalCarbon->format('d/m/Y') }}
+                                </td>
+                                <td class="px-4 py-3 text-gray-700">
+                                    {{ $namaHari }}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    @if($tgl->is_libur)
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                            </svg>
+                                            Libur
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                            </svg>
+                                            Masuk
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-gray-700">
+                                    {{ $tgl->keterangan ?: '-' }}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button @click="editTanggal('{{ $tgl->tanggal->format('Y-m-d') }}', {{ $tgl->is_libur ? '1' : '0' }}, '{{ addslashes($tgl->keterangan ?? '') }}')"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition-all shadow-sm">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
+                                            </svg>
+                                            Edit
+                                        </button>
+                                        <button @click="hapusTanggal('{{ $tgl->tanggal->format('Y-m-d') }}')"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-all shadow-sm">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                                            </svg>
+                                            Hapus
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                    <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z"/>
+                                    </svg>
+                                    <p class="text-sm font-medium">Belum ada hari libur yang ditambahkan</p>
+                                    <p class="text-xs mt-1">Gunakan form di atas untuk menambahkan hari libur</p>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
     @endif
@@ -233,51 +349,75 @@
     <div x-show="showModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
         <div class="flex items-center justify-center min-h-screen px-4">
             <div x-show="showModal" x-transition class="fixed inset-0 bg-gray-900/50" @click="showModal = false"></div>
-            <div x-show="showModal" x-transition class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 z-10">
-                <h3 class="text-lg font-bold text-gray-900 mb-1">Input Absensi</h3>
+            <div x-show="showModal" x-transition class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 z-10">
+                <h3 class="text-lg font-bold text-gray-900 mb-1">Input Absensi Harian</h3>
                 <p class="text-sm text-gray-500 mb-4">
-                    <span x-text="modalName"></span> -
-                    <span x-text="modalTanggal"></span>
-                    (<span x-text="modalSlot === 'pagi' ? 'Apel Pagi' : 'Apel Siang'"></span>)
+                    <span class="font-medium text-gray-700" x-text="modalName"></span>
+                    <span class="mx-1 text-gray-400">·</span>
+                    <span x-text="modalTanggalFormatted"></span>
                 </p>
 
-                <div class="space-y-3">
-                    <div class="grid grid-cols-2 gap-2">
-                        <button @click="modalStatus = 'hadir'" :class="modalStatus === 'hadir' ? 'ring-2 ring-green-500 bg-green-50' : 'bg-gray-50 hover:bg-green-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
-                            <span class="w-3 h-3 rounded bg-green-500"></span> Hadir
-                        </button>
-                        <button @click="modalStatus = 'izin'" :class="modalStatus === 'izin' ? 'ring-2 ring-yellow-500 bg-yellow-50' : 'bg-gray-50 hover:bg-yellow-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
-                            <span class="w-3 h-3 rounded bg-yellow-500"></span> Izin
-                        </button>
-                        <button @click="modalStatus = 'sakit'" :class="modalStatus === 'sakit' ? 'ring-2 ring-orange-500 bg-orange-50' : 'bg-gray-50 hover:bg-orange-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
-                            <span class="w-3 h-3 rounded bg-orange-500"></span> Sakit
-                        </button>
-                        <button @click="modalStatus = 'cuti_bersalin'" :class="modalStatus === 'cuti_bersalin' ? 'ring-2 ring-rose-700 bg-rose-50' : 'bg-gray-50 hover:bg-rose-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
-                            <span class="w-3 h-3 rounded bg-rose-700"></span> Cuti Bersalin
-                        </button>
-                        <button @click="modalStatus = 'cuti_tahunan'" :class="modalStatus === 'cuti_tahunan' ? 'ring-2 ring-rose-700 bg-rose-50' : 'bg-gray-50 hover:bg-rose-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
-                            <span class="w-3 h-3 rounded bg-rose-700"></span> Cuti Tahunan
-                        </button>
-                        <button @click="modalStatus = 'dinas_luar'" :class="modalStatus === 'dinas_luar' ? 'ring-2 ring-sky-400 bg-sky-50' : 'bg-gray-50 hover:bg-sky-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
-                            <span class="w-3 h-3 rounded bg-sky-400"></span> Dinas Luar
-                        </button>
-                        <button @click="modalStatus = 'ijin_belajar'" :class="modalStatus === 'ijin_belajar' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-50 hover:bg-purple-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
-                            <span class="w-3 h-3 rounded bg-purple-500"></span> Ijin Belajar
-                        </button>
-                        <button @click="modalStatus = 'alfa'" :class="modalStatus === 'alfa' ? 'ring-2 ring-red-500 bg-red-50' : 'bg-gray-50 hover:bg-red-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
-                            <span class="w-3 h-3 rounded bg-red-500"></span> Tidak Hadir
-                        </button>
+                <div class="space-y-4">
+                    {{-- Status Kehadiran --}}
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-2">Status Kehadiran:</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button @click="modalStatusKehadiran = 'hadir'" :class="modalStatusKehadiran === 'hadir' ? 'ring-2 ring-green-500 bg-green-50' : 'bg-gray-50 hover:bg-green-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
+                                <span class="w-3 h-3 rounded bg-green-500"></span> Hadir
+                            </button>
+                            <button @click="modalStatusKehadiran = 'izin'" :class="modalStatusKehadiran === 'izin' ? 'ring-2 ring-yellow-500 bg-yellow-50' : 'bg-gray-50 hover:bg-yellow-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
+                                <span class="w-3 h-3 rounded bg-yellow-500"></span> Izin
+                            </button>
+                            <button @click="modalStatusKehadiran = 'sakit'" :class="modalStatusKehadiran === 'sakit' ? 'ring-2 ring-orange-500 bg-orange-50' : 'bg-gray-50 hover:bg-orange-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
+                                <span class="w-3 h-3 rounded bg-orange-500"></span> Sakit
+                            </button>
+                            <button @click="modalStatusKehadiran = 'cuti_bersalin'" :class="modalStatusKehadiran === 'cuti_bersalin' ? 'ring-2 ring-rose-700 bg-rose-50' : 'bg-gray-50 hover:bg-rose-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
+                                <span class="w-3 h-3 rounded bg-rose-700"></span> Cuti Bersalin
+                            </button>
+                            <button @click="modalStatusKehadiran = 'cuti_tahunan'" :class="modalStatusKehadiran === 'cuti_tahunan' ? 'ring-2 ring-rose-700 bg-rose-50' : 'bg-gray-50 hover:bg-rose-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
+                                <span class="w-3 h-3 rounded bg-rose-700"></span> Cuti Tahunan
+                            </button>
+                            <button @click="modalStatusKehadiran = 'dinas_luar'" :class="modalStatusKehadiran === 'dinas_luar' ? 'ring-2 ring-sky-400 bg-sky-50' : 'bg-gray-50 hover:bg-sky-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
+                                <span class="w-3 h-3 rounded bg-sky-400"></span> Dinas Luar
+                            </button>
+                            <button @click="modalStatusKehadiran = 'ijin_belajar'" :class="modalStatusKehadiran === 'ijin_belajar' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-50 hover:bg-purple-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
+                                <span class="w-3 h-3 rounded bg-purple-500"></span> Ijin Belajar
+                            </button>
+                            <button @click="modalStatusKehadiran = 'alfa'" :class="modalStatusKehadiran === 'alfa' ? 'ring-2 ring-red-500 bg-red-50' : 'bg-gray-50 hover:bg-red-50'" class="px-3 py-2 rounded-lg text-xs font-medium text-gray-700 flex items-center gap-2 transition-all">
+                                <span class="w-3 h-3 rounded bg-red-500"></span> Tidak Hadir
+                            </button>
+                        </div>
                     </div>
 
-                    <div x-show="modalStatus === 'hadir'" x-transition class="bg-green-50 rounded-lg p-3">
-                        <label class="block text-xs font-medium text-green-700 mb-1">Jam Kehadiran:</label>
-                        <input type="time" x-model="modalJam" class="w-full text-sm border-green-300 rounded-lg px-3 py-2 focus:border-green-500 focus:ring-green-500">
-                    </div>
+                    {{-- Section Apel (hanya muncul jika Hadir) --}}
+                    <div x-show="modalStatusKehadiran === 'hadir'" x-transition class="space-y-3">
+                        {{-- Apel Pagi --}}
+                        <div class="bg-green-50 rounded-lg p-3 border border-green-200">
+                            <label class="block text-xs font-semibold text-green-800 mb-2">APEL PAGI:</label>
+                            <div class="flex gap-2 mb-2">
+                                <button @click="modalApelPagi = 'apel'" :class="modalApelPagi === 'apel' ? 'bg-green-600 text-white ring-2 ring-green-600' : 'bg-white text-gray-700 border border-gray-300 hover:bg-green-50'" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all">
+                                    ✓ Apel
+                                </button>
+                                <button @click="modalApelPagi = 'tidak_apel'" :class="modalApelPagi === 'tidak_apel' ? 'bg-gray-700 text-white ring-2 ring-gray-700' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all">
+                                    ✗ Tidak Apel
+                                </button>
+                            </div>
+                            <input type="time" x-model="modalJamPagi" class="w-full text-sm border-green-300 rounded-lg px-3 py-2 focus:border-green-500 focus:ring-green-500" placeholder="Jam kehadiran">
+                        </div>
 
-                    <div x-show="modalStatus === 'izin'" x-transition class="bg-yellow-50 rounded-lg p-3">
-                        <label class="block text-xs font-medium text-yellow-700 mb-1">Jam Izin (pulang awal):</label>
-                        <input type="time" x-model="modalJam" class="w-full text-sm border-yellow-300 rounded-lg px-3 py-2 focus:border-yellow-500 focus:ring-yellow-500">
-                        <p class="text-[10px] text-yellow-600 mt-1">Isi jam jika pegawai izin pulang lebih awal. Kosongkan jika izin seharian.</p>
+                        {{-- Apel Siang --}}
+                        <div class="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                            <label class="block text-xs font-semibold text-blue-800 mb-2">APEL SIANG:</label>
+                            <div class="flex gap-2 mb-2">
+                                <button @click="modalApelSiang = 'apel'" :class="modalApelSiang === 'apel' ? 'bg-blue-600 text-white ring-2 ring-blue-600' : 'bg-white text-gray-700 border border-gray-300 hover:bg-blue-50'" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all">
+                                    ✓ Apel
+                                </button>
+                                <button @click="modalApelSiang = 'tidak_apel'" :class="modalApelSiang === 'tidak_apel' ? 'bg-gray-700 text-white ring-2 ring-gray-700' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all">
+                                    ✗ Tidak Apel
+                                </button>
+                            </div>
+                            <input type="time" x-model="modalJamSiang" class="w-full text-sm border-blue-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-blue-500" placeholder="Jam kehadiran">
+                        </div>
                     </div>
                 </div>
 
@@ -289,7 +429,7 @@
                         <button @click="showModal = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
                             Batal
                         </button>
-                        <button @click="saveAbsensi()" :disabled="saving || !modalStatus" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                        <button @click="saveAbsensi()" :disabled="saving || !modalStatusKehadiran || (modalStatusKehadiran === 'hadir' && (!modalJamPagi || !modalJamSiang))" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
                             <span x-text="saving ? 'Menyimpan...' : 'Simpan'"></span>
                         </button>
                     </div>
@@ -302,6 +442,14 @@
 
 @section('scripts')
 <script>
+// Restore scroll position after reload
+(function() {
+    const y = sessionStorage.getItem('scrollY');
+    if (y !== null) {
+        sessionStorage.removeItem('scrollY');
+        window.addEventListener('load', () => window.scrollTo({ top: parseInt(y), behavior: 'instant' }));
+    }
+})();
 document.addEventListener('alpine:init', () => {
     Alpine.data('absensiManager', () => ({
         showModal: false,
@@ -309,37 +457,90 @@ document.addEventListener('alpine:init', () => {
         modalUserId: null,
         modalName: '',
         modalTanggal: '',
-        modalSlot: '',
-        modalStatus: '',
-        modalJam: '',
+        modalTanggalFormatted: '',
+        modalStatusKehadiran: '',
+        modalApelPagi: 'apel',
+        modalJamPagi: '',
+        modalApelSiang: 'apel',
+        modalJamSiang: '',
 
-        openModal(userId, name, tanggal, slot, status, jam) {
+        openModal(userId, name, tanggal, pagiStatus, pagiJam, pagiKet, soreStatus, soreJam, soreKet) {
             this.modalUserId = userId;
             this.modalName = name;
             this.modalTanggal = tanggal;
-            this.modalSlot = slot;
-            this.modalStatus = status || '';
-            this.modalJam = jam || '';
+
+            // Format tanggal dengan nama hari
+            const hariMap = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+            const d = new Date(tanggal + 'T00:00:00');
+            const namaHari = hariMap[d.getDay()];
+            const [y, m, day] = tanggal.split('-');
+            const bulanMap = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+            this.modalTanggalFormatted = `${namaHari}, ${parseInt(day)} ${bulanMap[parseInt(m)-1]} ${y}`;
+
+            // Tentukan status kehadiran dari data yang ada
+            // Prioritas: jika ada status non-hadir, gunakan itu
+            if (pagiStatus && pagiStatus !== 'hadir') {
+                this.modalStatusKehadiran = pagiStatus;
+            } else if (soreStatus && soreStatus !== 'hadir') {
+                this.modalStatusKehadiran = soreStatus;
+            } else if (pagiStatus === 'hadir' || soreStatus === 'hadir') {
+                this.modalStatusKehadiran = 'hadir';
+            } else {
+                this.modalStatusKehadiran = '';
+            }
+
+            // Set data apel pagi
+            if (pagiStatus === 'hadir') {
+                this.modalApelPagi = pagiKet === 'tidak_apel' ? 'tidak_apel' : 'apel';
+                this.modalJamPagi = pagiJam || '';
+            } else {
+                this.modalApelPagi = 'apel';
+                this.modalJamPagi = '';
+            }
+
+            // Set data apel siang
+            if (soreStatus === 'hadir') {
+                this.modalApelSiang = soreKet === 'tidak_apel' ? 'tidak_apel' : 'apel';
+                this.modalJamSiang = soreJam || '';
+            } else {
+                this.modalApelSiang = 'apel';
+                this.modalJamSiang = '';
+            }
+
             this.showModal = true;
         },
 
         async saveAbsensi() {
-            if (this.saving || !this.modalStatus) return;
+            if (this.saving || !this.modalStatusKehadiran) return;
+
+            // Validasi: jika hadir, jam wajib diisi
+            if (this.modalStatusKehadiran === 'hadir') {
+                if (!this.modalJamPagi || !this.modalJamSiang) {
+                    window.toast('Jam kehadiran wajib diisi untuk kedua apel', 'error');
+                    return;
+                }
+            }
+
             this.saving = true;
 
             try {
                 const res = await window.api.post('/absensi', {
                     user_id: this.modalUserId,
                     tanggal: this.modalTanggal,
-                    slot: this.modalSlot,
-                    status: this.modalStatus,
-                    jam: (this.modalStatus === 'hadir' || this.modalStatus === 'izin') ? this.modalJam : null,
+                    status_kehadiran: this.modalStatusKehadiran,
+                    apel_pagi: this.modalStatusKehadiran === 'hadir' ? this.modalApelPagi : null,
+                    jam_pagi: this.modalStatusKehadiran === 'hadir' ? this.modalJamPagi : null,
+                    apel_siang: this.modalStatusKehadiran === 'hadir' ? this.modalApelSiang : null,
+                    jam_siang: this.modalStatusKehadiran === 'hadir' ? this.modalJamSiang : null,
                 });
                 const data = await res.json();
                 if (data.success) {
                     window.toast('Absensi disimpan', 'success');
                     this.showModal = false;
+                    const scrollY = window.scrollY;
                     location.reload();
+                    // Restore scroll after reload via sessionStorage
+                    sessionStorage.setItem('scrollY', scrollY);
                 } else {
                     window.toast(data.message || 'Gagal menyimpan', 'error');
                 }
@@ -357,12 +558,13 @@ document.addEventListener('alpine:init', () => {
                 const res = await window.api.delete('/absensi', {
                     user_id: this.modalUserId,
                     tanggal: this.modalTanggal,
-                    slot: this.modalSlot,
                 });
                 const data = await res.json();
                 if (data.success) {
                     window.toast('Absensi dihapus', 'info');
                     this.showModal = false;
+                    const scrollY = window.scrollY;
+                    sessionStorage.setItem('scrollY', scrollY);
                     location.reload();
                 } else {
                     window.toast(data.message || 'Gagal menghapus', 'error');
@@ -378,6 +580,7 @@ document.addEventListener('alpine:init', () => {
         tanggal: '',
         isLibur: '1',
         keterangan: '',
+        editMode: false,
 
         async simpanTanggal() {
             if (!this.tanggal) {
@@ -393,10 +596,46 @@ document.addEventListener('alpine:init', () => {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    window.toast(data.message, 'success');
+                    window.toast(this.editMode ? 'Data berhasil diupdate' : 'Data berhasil ditambahkan', 'success');
+                    this.batalEdit();
                     location.reload();
                 } else {
                     window.toast(data.message || 'Gagal menyimpan', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+        },
+
+        editTanggal(tanggal, isLibur, ket) {
+            this.tanggal = tanggal;
+            this.isLibur = String(isLibur);
+            this.keterangan = ket || '';
+            this.editMode = true;
+            // Scroll ke form
+            const form = document.getElementById('form-hari-libur');
+            if (form) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        },
+
+        batalEdit() {
+            this.tanggal = '';
+            this.isLibur = '1';
+            this.keterangan = '';
+            this.editMode = false;
+        },
+
+        async hapusTanggal(tanggal) {
+            if (!confirm('Yakin ingin menghapus data tanggal ' + tanggal + '?')) return;
+            try {
+                const res = await window.api.post('/tanggal-libur/delete', {
+                    tanggal: tanggal,
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.toast('Data berhasil dihapus', 'success');
+                    location.reload();
+                } else {
+                    window.toast(data.message || 'Gagal menghapus', 'error');
                 }
             } catch (e) {
                 window.toast('Terjadi kesalahan', 'error');

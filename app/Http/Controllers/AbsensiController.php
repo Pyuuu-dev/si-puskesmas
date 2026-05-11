@@ -88,50 +88,69 @@ class AbsensiController extends Controller
             'bulan',
             'tahun',
             'namaBulan',
-            'daysInMonth'
+            'daysInMonth',
+            'tanggalLibur'
         ));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'tanggal' => 'required|date',
-            'slot' => 'required|in:pagi,sore',
-            'status' => 'required|in:hadir,izin,sakit,cuti,cuti_bersalin,cuti_tahunan,dinas_luar,ijin_belajar,alfa', // cuti kept for backward compatibility
-            'jam' => 'nullable|string',
-            'keterangan' => 'nullable|string|max:255',
+            'user_id'          => 'required|exists:users,id',
+            'tanggal'          => 'required|date',
+            'status_kehadiran' => 'required|in:hadir,izin,sakit,cuti_bersalin,cuti_tahunan,dinas_luar,ijin_belajar,alfa',
+            'apel_pagi'        => 'nullable|in:apel,tidak_apel',
+            'jam_pagi'         => 'nullable|string',
+            'apel_siang'       => 'nullable|in:apel,tidak_apel',
+            'jam_siang'        => 'nullable|string',
         ]);
 
         $tanggal = date('Y-m-d', strtotime($validated['tanggal']));
+        $status  = $validated['status_kehadiran'];
 
-        // Try to find existing record first
-        $absensi = Absensi::where('user_id', $validated['user_id'])
-            ->whereDate('tanggal', $tanggal)
-            ->where('slot', $validated['slot'])
-            ->first();
-
-        if ($absensi) {
-            $absensi->update([
-                'status' => $validated['status'],
-                'jam' => $validated['jam'] ?? null,
-                'keterangan' => $validated['keterangan'] ?? null,
-            ]);
+        if ($status === 'hadir') {
+            $slots = [
+                'pagi' => [
+                    'status'     => 'hadir',
+                    'jam'        => $validated['jam_pagi'] ?? null,
+                    'keterangan' => ($validated['apel_pagi'] ?? 'apel') === 'tidak_apel' ? 'tidak_apel' : null,
+                ],
+                'sore' => [
+                    'status'     => 'hadir',
+                    'jam'        => $validated['jam_siang'] ?? null,
+                    'keterangan' => ($validated['apel_siang'] ?? 'apel') === 'tidak_apel' ? 'tidak_apel' : null,
+                ],
+            ];
         } else {
-            $absensi = Absensi::create([
-                'user_id' => $validated['user_id'],
-                'tanggal' => $tanggal,
-                'slot' => $validated['slot'],
-                'status' => $validated['status'],
-                'jam' => $validated['jam'] ?? null,
-                'keterangan' => $validated['keterangan'] ?? null,
-            ]);
+            $slots = [
+                'pagi' => ['status' => $status, 'jam' => null, 'keterangan' => null],
+                'sore' => ['status' => $status, 'jam' => null, 'keterangan' => null],
+            ];
+        }
+
+        $saved = [];
+        foreach ($slots as $slot => $data) {
+            $absensi = Absensi::where('user_id', $validated['user_id'])
+                ->whereDate('tanggal', $tanggal)
+                ->where('slot', $slot)
+                ->first();
+
+            if ($absensi) {
+                $absensi->update($data);
+            } else {
+                $absensi = Absensi::create(array_merge($data, [
+                    'user_id' => $validated['user_id'],
+                    'tanggal' => $tanggal,
+                    'slot'    => $slot,
+                ]));
+            }
+            $saved[$slot] = $absensi;
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Absensi berhasil disimpan.',
-            'data' => $absensi,
+            'data'    => $saved,
         ]);
     }
 
@@ -140,14 +159,12 @@ class AbsensiController extends Controller
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'tanggal' => 'required|date',
-            'slot' => 'required|in:pagi,sore',
         ]);
 
         $tanggal = date('Y-m-d', strtotime($validated['tanggal']));
 
         $deleted = Absensi::where('user_id', $validated['user_id'])
             ->whereDate('tanggal', $tanggal)
-            ->where('slot', $validated['slot'])
             ->delete();
 
         return response()->json([

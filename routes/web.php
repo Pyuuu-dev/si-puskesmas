@@ -134,7 +134,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/tanggal-libur', [\App\Http\Controllers\TanggalLiburController::class, 'store'])
         ->middleware('role:super_admin,kepala')
         ->name('tanggal-libur.store');
-    Route::delete('/tanggal-libur', [\App\Http\Controllers\TanggalLiburController::class, 'destroy'])
+    Route::post('/tanggal-libur/delete', [\App\Http\Controllers\TanggalLiburController::class, 'destroyByTanggal'])
+        ->middleware('role:super_admin,kepala')
+        ->name('tanggal-libur.delete');
+    Route::delete('/tanggal-libur/{id?}', [\App\Http\Controllers\TanggalLiburController::class, 'destroy'])
         ->middleware('role:super_admin,kepala')
         ->name('tanggal-libur.destroy');
     Route::post('/info-tanggal', [\App\Http\Controllers\TanggalLiburController::class, 'storeInfo'])

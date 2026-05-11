@@ -352,6 +352,7 @@ class RekapController extends Controller
             $matrix[$record->user_id][$record->tanggal->format('Y-m-d')][$record->slot] = [
                 'status' => $record->status,
                 'jam' => $record->jam,
+                'keterangan' => $record->keterangan,
             ];
         }
 
@@ -399,10 +400,10 @@ class RekapController extends Controller
             $statusMap, $statusColors, $bulan, $tahun, $daysInMonth, $namaInstansi, $namaBulan, 
             'harian', 'KEHADIRAN HARIAN', $fixedCols, $rekapCodes, $totalColsPerSection, $lastColPerSection, $colLetter, false);
 
-        // ========== SECTION 4: REKAP GABUNGAN APEL ==========
+        // ========== SECTION 4: REKAP POIN KEDISIPLINAN ==========
         $sheet4 = $spreadsheet->createSheet();
-        $sheet4->setTitle('REKAP GABUNGAN APEL');
-        $this->buildRekapGabungan($sheet4, $pegawai, $rekapPagi, $rekapSiang, $statusColors, $namaInstansi, $namaBulan, $tahun, $colLetter);
+        $sheet4->setTitle('REKAP');
+        $this->buildRekapPoin($sheet4, $pegawai, $absensiData, $statusColors, $namaInstansi, $namaBulan, $tahun, $colLetter);
 
         // Generate file
         $filename = "REKAP_ABSENSI_{$namaBulan}_{$tahun}.xlsx";
@@ -558,14 +559,21 @@ class RekapController extends Controller
                     if ($slotData) {
                         $status = $slotData['status'];
                         $jam = $slotData['jam'];
+                        $keterangan = $slotData['keterangan'] ?? null;
                         $code = $statusMap[$status] ?? '';
                         
+                        // Deteksi Tidak Apel
+                        $isTidakApel = ($status === 'hadir' && $keterangan === 'tidak_apel');
+                        if ($isTidakApel) {
+                            $code = 'TA';
+                        }
+                        
                         if ($showTime && $jam) {
-                            // Show status with time: H (07:12)
+                            // Show status with time: H (07:12) or TA (07:12)
                             $jamDisplay = substr($jam, 0, 5);
                             
                             // Apply konversi for ALL statuses that have time (not just hadir)
-                            if ($jk) {
+                            if ($jk && !$isTidakApel) {
                                 if ($slot === 'pagi') {
                                     // Apel Pagi: subtract konversi masuk
                                     $konversi = $penempatan === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;
@@ -590,8 +598,11 @@ class RekapController extends Controller
                             $sheet->setCellValue($cellRef, $code);
                         }
                         
-                        // Apply color
-                        if (isset($statusColors[$code])) {
+                        // Apply color (abu-abu untuk TA)
+                        if ($isTidakApel) {
+                            $sheet->getStyle($cellRef)->getFill()
+                                ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E5E7EB'); // gray-200
+                        } elseif (isset($statusColors[$code])) {
                             $sheet->getStyle($cellRef)->getFill()
                                 ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($statusColors[$code]);
                         }
@@ -707,27 +718,27 @@ class RekapController extends Controller
         return $rekapData;
     }
     /**
-     * Build Rekap Gabungan Apel sheet with point system
+     * Build Rekap Poin Kedisiplinan sheet (Poin Sakit + Poin TA)
      */
-    private function buildRekapGabungan($sheet, $pegawai, $rekapPagi, $rekapSiang, $statusColors, $namaInstansi, $namaBulan, $tahun, $colLetter)
+    private function buildRekapPoin($sheet, $pegawai, $absensiData, $statusColors, $namaInstansi, $namaBulan, $tahun, $colLetter)
     {
         $row = 1;
 
         // === HEADER ===
-        $sheet->setCellValue('A' . $row, "REKAP KETIDAKHADIRAN APEL PAGI & APEL SIANG");
-        $sheet->mergeCells("A{$row}:H{$row}");
+        $sheet->setCellValue('A' . $row, "REKAP POIN KEDISIPLINAN");
+        $sheet->mergeCells("A{$row}:I{$row}");
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(13);
         $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $row++;
 
         $sheet->setCellValue('A' . $row, strtoupper($namaInstansi));
-        $sheet->mergeCells("A{$row}:H{$row}");
+        $sheet->mergeCells("A{$row}:I{$row}");
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(11);
         $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $row++;
 
         $sheet->setCellValue('A' . $row, "BULAN {$namaBulan} {$tahun}");
-        $sheet->mergeCells("A{$row}:H{$row}");
+        $sheet->mergeCells("A{$row}:I{$row}");
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(11);
         $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $row++;
@@ -738,15 +749,16 @@ class RekapController extends Controller
         $sheet->setCellValue('A' . $row, 'NO');
         $sheet->setCellValue('B' . $row, 'NAMA');
         $sheet->setCellValue('C' . $row, 'NIP');
-        $sheet->setCellValue('D' . $row, 'KETIDAKHADIRAN PAGI');
-        $sheet->setCellValue('E' . $row, 'KETIDAKHADIRAN SIANG');
-        $sheet->setCellValue('F' . $row, 'TOTAL KETIDAKHADIRAN');
-        $sheet->setCellValue('G' . $row, 'POIN');
-        $sheet->setCellValue('H' . $row, 'KETERANGAN');
+        $sheet->setCellValue('D' . $row, 'SAKIT (HARI)');
+        $sheet->setCellValue('E' . $row, 'POIN SAKIT');
+        $sheet->setCellValue('F' . $row, 'TA PAGI');
+        $sheet->setCellValue('G' . $row, 'TA SIANG');
+        $sheet->setCellValue('H' . $row, 'TOTAL TA');
+        $sheet->setCellValue('I' . $row, 'POIN TA');
 
-        $sheet->getStyle("A{$row}:H{$row}")->getFont()->setBold(true);
-        $sheet->getStyle("A{$row}:H{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("A{$row}:H{$row}")->getFill()
+        $sheet->getStyle("A{$row}:I{$row}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$row}:I{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("A{$row}:I{$row}")->getFill()
             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E3F2FD');
         
         // Freeze header
@@ -754,63 +766,92 @@ class RekapController extends Controller
         
         $row++;
 
+        // Build matrix per pegawai
+        $dataPerPegawai = [];
+        foreach ($absensiData as $record) {
+            $userId = $record->user_id;
+            $slot = $record->slot;
+            $status = $record->status;
+            $keterangan = $record->keterangan;
+
+            if (!isset($dataPerPegawai[$userId])) {
+                $dataPerPegawai[$userId] = [
+                    'sakit_pagi' => 0,
+                    'ta_pagi' => 0,
+                    'ta_siang' => 0,
+                ];
+            }
+
+            // Hitung sakit dari slot pagi saja (agar tidak double count)
+            if ($slot === 'pagi' && $status === 'sakit') {
+                $dataPerPegawai[$userId]['sakit_pagi']++;
+            }
+
+            // Hitung TA (tidak apel) dari hadir dengan keterangan 'tidak_apel'
+            if ($status === 'hadir' && $keterangan === 'tidak_apel') {
+                if ($slot === 'pagi') {
+                    $dataPerPegawai[$userId]['ta_pagi']++;
+                } else {
+                    $dataPerPegawai[$userId]['ta_siang']++;
+                }
+            }
+        }
+
         // === DATA ROWS ===
         foreach ($pegawai as $idx => $p) {
             $sheet->setCellValue('A' . $row, $idx + 1);
             $sheet->setCellValue('B' . $row, $p->name);
             $sheet->setCellValue('C' . $row, $p->nip ?? '');
 
-            // Calculate totals (count all statuses EXCEPT H - Hadir)
-            // Count: I, S, CB, CT, DL, IB, TK
-            $statusToCount = ['I', 'S', 'CB', 'CT', 'DL', 'IB', 'TK'];
-            $totalPagi = 0;
-            $totalSiang = 0;
-            
-            foreach ($statusToCount as $status) {
-                $totalPagi += $rekapPagi[$p->id][$status] ?? 0;
-                $totalSiang += $rekapSiang[$p->id][$status] ?? 0;
-            }
-            
-            $totalKeseluruhan = $totalPagi + $totalSiang;
-            
-            // Calculate points: floor(total / 7)
-            $poin = floor($totalKeseluruhan / 7);
-            
-            $sheet->setCellValue('D' . $row, $totalPagi);
-            $sheet->setCellValue('E' . $row, $totalSiang);
-            $sheet->setCellValue('F' . $row, $totalKeseluruhan);
-            $sheet->setCellValue('G' . $row, $poin);
-            
-            // Keterangan based on points (lower is better since we count absences)
-            $keterangan = '';
-            if ($poin == 0) {
-                $keterangan = 'Sangat Baik';
-            } elseif ($poin == 1) {
-                $keterangan = 'Baik';
-            } elseif ($poin == 2) {
-                $keterangan = 'Cukup';
-            } elseif ($poin == 3) {
-                $keterangan = 'Kurang';
-            } else {
-                $keterangan = 'Perlu Perhatian';
-            }
-            $sheet->setCellValue('H' . $row, $keterangan);
+            $data = $dataPerPegawai[$p->id] ?? ['sakit_pagi' => 0, 'ta_pagi' => 0, 'ta_siang' => 0];
+
+            // Poin Sakit: total sakit > 3 → (total - 3) poin
+            $totalSakit = $data['sakit_pagi'];
+            $poinSakit = max(0, $totalSakit - 3);
+
+            // Poin TA: floor(total_ta / 7)
+            $taPagi = $data['ta_pagi'];
+            $taSiang = $data['ta_siang'];
+            $totalTA = $taPagi + $taSiang;
+            $poinTA = floor($totalTA / 7);
+
+            $sheet->setCellValue('D' . $row, $totalSakit);
+            $sheet->setCellValue('E' . $row, $poinSakit);
+            $sheet->setCellValue('F' . $row, $taPagi);
+            $sheet->setCellValue('G' . $row, $taSiang);
+            $sheet->setCellValue('H' . $row, $totalTA);
+            $sheet->setCellValue('I' . $row, $poinTA);
 
             // Center align numeric columns
-            $sheet->getStyle("D{$row}:G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D{$row}:I{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             
-            // Color coding for poin column (lower is better)
-            if ($poin == 0) {
-                $sheet->getStyle("G{$row}")->getFill()
+            // Color coding for Poin Sakit column (E)
+            if ($poinSakit == 0) {
+                $sheet->getStyle("E{$row}")->getFill()
                     ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('C8E6C9'); // green
-            } elseif ($poin <= 2) {
-                $sheet->getStyle("G{$row}")->getFill()
+            } elseif ($poinSakit <= 2) {
+                $sheet->getStyle("E{$row}")->getFill()
                     ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF9C4'); // yellow
-            } elseif ($poin == 3) {
-                $sheet->getStyle("G{$row}")->getFill()
+            } elseif ($poinSakit <= 4) {
+                $sheet->getStyle("E{$row}")->getFill()
                     ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFE0B2'); // orange
             } else {
-                $sheet->getStyle("G{$row}")->getFill()
+                $sheet->getStyle("E{$row}")->getFill()
+                    ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFCDD2'); // red
+            }
+            
+            // Color coding for Poin TA column (I)
+            if ($poinTA == 0) {
+                $sheet->getStyle("I{$row}")->getFill()
+                    ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('C8E6C9'); // green
+            } elseif ($poinTA <= 2) {
+                $sheet->getStyle("I{$row}")->getFill()
+                    ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF9C4'); // yellow
+            } elseif ($poinTA <= 4) {
+                $sheet->getStyle("I{$row}")->getFill()
+                    ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFE0B2'); // orange
+            } else {
+                $sheet->getStyle("I{$row}")->getFill()
                     ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFCDD2'); // red
             }
 
@@ -819,7 +860,7 @@ class RekapController extends Controller
 
         // === BORDERS ===
         $dataEndRow = $row - 1;
-        $sheet->getStyle("A{$headerRow}:H{$dataEndRow}")->getBorders()->getAllBorders()
+        $sheet->getStyle("A{$headerRow}:I{$dataEndRow}")->getBorders()->getAllBorders()
             ->setBorderStyle(Border::BORDER_THIN);
 
         $row += 2;
@@ -829,27 +870,39 @@ class RekapController extends Controller
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row++;
 
-        $sheet->setCellValue('A' . $row, 'Yang dihitung: Izin (I), Sakit (S), Cuti Bersalin (CB), Cuti Tahunan (CT), Dinas Luar (DL), Ijin Belajar (IB), Tanpa Keterangan (TK)');
+        $sheet->setCellValue('A' . $row, '1. POIN SAKIT:');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row++;
-        $sheet->setCellValue('A' . $row, 'Catatan: Status Hadir (H) TIDAK dihitung dalam total');
+        $sheet->setCellValue('A' . $row, '   - Sakit 1-3 hari = 0 poin');
         $row++;
-        $sheet->setCellValue('A' . $row, 'Setiap kelipatan 7 total ketidakhadiran = 1 poin');
+        $sheet->setCellValue('A' . $row, '   - Sakit hari ke-4 dan seterusnya = 1 poin per hari');
         $row++;
-        $sheet->setCellValue('A' . $row, 'Contoh: Total 7 = 1 poin, Total 14 = 2 poin, Total 21 = 3 poin, Total 28 = 4 poin');
+        $sheet->setCellValue('A' . $row, '   - Contoh: 4 sakit = 1 poin, 5 sakit = 2 poin, 7 sakit = 4 poin');
         $row++;
-        $sheet->setCellValue('A' . $row, 'Rumus: POIN = FLOOR(Total Keseluruhan / 7)');
+        $sheet->setCellValue('A' . $row, '   - Rumus: POIN SAKIT = MAX(0, Total Sakit - 3)');
         $row += 2;
 
-        $sheet->setCellValue('A' . $row, 'KATEGORI POIN (semakin rendah semakin baik):');
+        $sheet->setCellValue('A' . $row, '2. POIN TA (TIDAK APEL):');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+        $sheet->setCellValue('A' . $row, '   - TA = Hadir tapi tidak ikut apel pagi/siang');
+        $row++;
+        $sheet->setCellValue('A' . $row, '   - Setiap kelipatan 7 TA = 1 poin');
+        $row++;
+        $sheet->setCellValue('A' . $row, '   - Contoh: 7 TA = 1 poin, 14 TA = 2 poin, 21 TA = 3 poin');
+        $row++;
+        $sheet->setCellValue('A' . $row, '   - Rumus: POIN TA = FLOOR(Total TA / 7)');
+        $row += 2;
+
+        $sheet->setCellValue('A' . $row, 'WARNA POIN (berlaku untuk Poin Sakit dan Poin TA):');
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row++;
         
         $categories = [
-            ['0 poin', 'Sangat Baik', 'C8E6C9'],
-            ['1 poin', 'Baik', 'FFF9C4'],
-            ['2 poin', 'Cukup', 'FFF9C4'],
-            ['3 poin', 'Kurang', 'FFE0B2'],
-            ['≥ 4 poin', 'Perlu Perhatian', 'FFCDD2'],
+            ['0 poin', 'Baik', 'C8E6C9'],
+            ['1-2 poin', 'Perhatian', 'FFF9C4'],
+            ['3-4 poin', 'Waspada', 'FFE0B2'],
+            ['≥ 5 poin', 'Kritis', 'FFCDD2'],
         ];
         
         foreach ($categories as $cat) {
@@ -863,18 +916,19 @@ class RekapController extends Controller
         $sheet->getColumnDimension('A')->setWidth(4);
         $sheet->getColumnDimension('B')->setWidth(25);
         $sheet->getColumnDimension('C')->setWidth(20);
-        $sheet->getColumnDimension('D')->setWidth(18);
-        $sheet->getColumnDimension('E')->setWidth(18);
-        $sheet->getColumnDimension('F')->setWidth(20);
-        $sheet->getColumnDimension('G')->setWidth(8);
-        $sheet->getColumnDimension('H')->setWidth(18);
+        $sheet->getColumnDimension('D')->setWidth(14);
+        $sheet->getColumnDimension('E')->setWidth(12);
+        $sheet->getColumnDimension('F')->setWidth(10);
+        $sheet->getColumnDimension('G')->setWidth(10);
+        $sheet->getColumnDimension('H')->setWidth(10);
+        $sheet->getColumnDimension('I')->setWidth(10);
 
         // Vertical alignment
-        $sheet->getStyle("A{$headerRow}:H{$dataEndRow}")->getAlignment()
+        $sheet->getStyle("A{$headerRow}:I{$dataEndRow}")->getAlignment()
             ->setVertical(Alignment::VERTICAL_CENTER);
 
         // Font size for data
-        $sheet->getStyle("A" . ($headerRow + 1) . ":H{$dataEndRow}")->getFont()->setSize(10);
+        $sheet->getStyle("A" . ($headerRow + 1) . ":I{$dataEndRow}")->getFont()->setSize(10);
 
         // Print settings
         $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT);

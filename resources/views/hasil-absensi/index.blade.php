@@ -158,6 +158,8 @@
                                     $soreStatus = $soreData['status'] ?? null;
                                     $jamPagi = $pagiData['jam'] ?? null;
                                     $jamSore = $soreData['jam'] ?? null;
+                                    $pagiKeterangan = $pagiData['keterangan'] ?? null;
+                                    $soreKeterangan = $soreData['keterangan'] ?? null;
 
                                     $konversiMasuk = '';
                                     $konversiPulang = '';
@@ -238,10 +240,20 @@
                                 {{-- Masuk (Pagi) --}}
                                 <td class="px-0 py-0 text-center border-r border-gray-100 {{ $isLibur ? 'bg-red-50/50' : '' }}">
                                     @if($pagiStatus === 'hadir' && $jamPagi)
-                                        <div class="w-full h-10 flex flex-col items-center justify-center">
-                                            <span class="text-[10px] text-gray-400">{{ substr($jamPagi, 0, 5) }}</span>
-                                            <span class="text-xs font-bold text-green-700">{{ $konversiMasuk }}</span>
-                                        </div>
+                                        @if($pagiKeterangan === 'tidak_apel')
+                                            {{-- Tidak Apel - tampilkan jam raw dan konversi --}}
+                                            <div class="w-full h-12 flex flex-col items-center justify-center bg-gray-200 py-1">
+                                                <span class="text-[9px] text-gray-500 leading-tight">{{ substr($jamPagi, 0, 5) }}</span>
+                                                <span class="text-xs font-bold text-gray-700 leading-tight">TA</span>
+                                                <span class="text-[9px] text-gray-500 leading-tight">({{ $konversiMasuk }})</span>
+                                            </div>
+                                        @else
+                                            {{-- Apel (Hadir) --}}
+                                            <div class="w-full h-10 flex flex-col items-center justify-center">
+                                                <span class="text-[10px] text-gray-400">{{ substr($jamPagi, 0, 5) }}</span>
+                                                <span class="text-xs font-bold text-green-700">{{ $konversiMasuk }}</span>
+                                            </div>
+                                        @endif
                                     @elseif($pagiStatus && $pagiStatus !== 'hadir')
                                         <div class="w-full h-10 flex items-center justify-center {{ $statusColors[$pagiStatus] ?? '' }}">
                                             <span class="text-[10px] font-bold">{{ $statusLabels[$pagiStatus] ?? strtoupper(substr($pagiStatus, 0, 2)) }}</span>
@@ -254,10 +266,20 @@
                                 {{-- Pulang (Sore) --}}
                                 <td class="px-0 py-0 text-center border-r border-gray-200 {{ $isLibur ? 'bg-red-50/50' : '' }}">
                                     @if($soreStatus === 'hadir' && $jamSore)
-                                        <div class="w-full h-10 flex flex-col items-center justify-center">
-                                            <span class="text-[10px] text-gray-400">{{ substr($jamSore, 0, 5) }}</span>
-                                            <span class="text-xs font-bold text-blue-700">{{ $konversiPulang }}</span>
-                                        </div>
+                                        @if($soreKeterangan === 'tidak_apel')
+                                            {{-- Tidak Apel - tampilkan jam raw dan konversi --}}
+                                            <div class="w-full h-12 flex flex-col items-center justify-center bg-gray-200 py-1">
+                                                <span class="text-[9px] text-gray-500 leading-tight">{{ substr($jamSore, 0, 5) }}</span>
+                                                <span class="text-xs font-bold text-gray-700 leading-tight">TA</span>
+                                                <span class="text-[9px] text-gray-500 leading-tight">({{ $konversiPulang }})</span>
+                                            </div>
+                                        @else
+                                            {{-- Apel (Hadir) --}}
+                                            <div class="w-full h-10 flex flex-col items-center justify-center">
+                                                <span class="text-[10px] text-gray-400">{{ substr($jamSore, 0, 5) }}</span>
+                                                <span class="text-xs font-bold text-blue-700">{{ $konversiPulang }}</span>
+                                            </div>
+                                        @endif
                                     @elseif($soreStatus === 'izin' && $jamSore)
                                         <div class="w-full h-10 flex flex-col items-center justify-center bg-yellow-50">
                                             <span class="text-[10px] text-yellow-600">I: {{ substr($jamSore, 0, 5) }}</span>

@@ -64,12 +64,13 @@ class HasilAbsensiController extends Controller
             ->whereYear('tanggal', $tahun)
             ->get();
 
-        // Build matrix: [user_id][tanggal][slot] = {status, jam}
+        // Build matrix: [user_id][tanggal][slot] = {status, jam, keterangan}
         $matrix = [];
         foreach ($absensiData as $record) {
             $matrix[$record->user_id][$record->tanggal->format('Y-m-d')][$record->slot] = [
                 'status' => $record->status,
                 'jam' => $record->jam,
+                'keterangan' => $record->keterangan,
             ];
         }
 

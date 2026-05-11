@@ -40,13 +40,35 @@ class TanggalLiburController extends Controller
         return response()->json(['success' => true, 'message' => 'Data tanggal berhasil disimpan.', 'data' => $record]);
     }
 
-    public function destroy(Request $request)
+    public function destroyByTanggal(Request $request)
     {
         $validated = $request->validate([
             'tanggal' => 'required|date',
         ]);
 
-        TanggalLibur::where('tanggal', $validated['tanggal'])->delete();
+        $deleted = TanggalLibur::whereDate('tanggal', $validated['tanggal'])->delete();
+
+        if (!$deleted) {
+            return response()->json(['success' => false, 'message' => 'Data tidak ditemukan.'], 404);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Data tanggal berhasil dihapus.']);
+    }
+
+    public function destroy(Request $request, $id = null)
+    {
+        if ($id) {
+            $record = TanggalLibur::findOrFail($id);
+            $record->delete();
+        } else {
+            $validated = $request->validate([
+                'tanggal' => 'required|date',
+            ]);
+            $deleted = TanggalLibur::whereDate('tanggal', $validated['tanggal'])->delete();
+            if (!$deleted) {
+                return response()->json(['success' => false, 'message' => 'Data tidak ditemukan.'], 404);
+            }
+        }
 
         return response()->json(['success' => true, 'message' => 'Data tanggal berhasil dihapus.']);
     }

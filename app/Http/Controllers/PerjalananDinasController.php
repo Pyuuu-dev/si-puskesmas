@@ -136,8 +136,10 @@ class PerjalananDinasController extends Controller
             ->get();
 
         // Get absensi data for this month (izin, sakit, cuti, alfa only - hadir excluded)
+        // Only read from slot 'pagi' to represent daily status (avoid duplication)
         $absensiData = Absensi::whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)
+            ->where('slot', 'pagi')
             ->whereIn('status', ['izin', 'sakit', 'cuti', 'dinas_luar', 'ijin_belajar', 'cuti_bersalin', 'cuti_tahunan', 'alfa'])
             ->get();
 
