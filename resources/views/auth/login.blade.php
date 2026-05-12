@@ -31,7 +31,7 @@
                     </div>
                 @endif
                 <h1 class="text-2xl font-bold text-white tracking-tight">{{ \App\Models\Setting::get('nama_instansi', 'SI Puskesmas') }}</h1>
-                <p class="text-blue-100 mt-1 text-sm font-medium">Sistem Informasi</p>
+                <p class="text-blue-100 mt-1 text-sm font-medium">{{ \App\Models\Setting::get('nama_sistem', 'Sistem Informasi Puskesmas') }}</p>
             </div>
 
             {{-- Login Card --}}

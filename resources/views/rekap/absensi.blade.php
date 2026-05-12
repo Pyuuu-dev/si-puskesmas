@@ -73,7 +73,10 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @foreach($pegawai as $i => $p)
-                        @php $r = $rekap[$p->id]; $total = array_sum($r); @endphp
+                        @php
+                            $r = $rekap[$p->id];
+                            $total = $r['hadir'] + $r['izin'] + $r['sakit'] + $r['cuti_bersalin'] + $r['cuti_tahunan'] + $r['dinas_luar'] + $r['ijin_belajar'] + $r['alfa'];
+                        @endphp
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-2 text-gray-500">{{ $i + 1 }}</td>
                             <td class="px-4 py-2 font-medium text-gray-800">{{ $p->name }}</td>
@@ -86,7 +89,7 @@
                             <td class="px-3 py-2 text-center font-bold text-sky-600 bg-sky-50/50">{{ $r['dinas_luar'] ?: '' }}</td>
                             <td class="px-3 py-2 text-center font-bold text-purple-700 bg-purple-50/50">{{ $r['ijin_belajar'] ?: '' }}</td>
                             <td class="px-3 py-2 text-center font-bold text-red-700 bg-red-50/50">{{ $r['alfa'] ?: '' }}</td>
-                            <td class="px-3 py-2 text-center font-bold text-gray-900 bg-gray-100/50">{{ $total }}</td>
+                            <td class="px-3 py-2 text-center font-bold text-gray-900 bg-gray-100/50">{{ $total ?: '' }}</td>
                         </tr>
                     @endforeach
                 </tbody>

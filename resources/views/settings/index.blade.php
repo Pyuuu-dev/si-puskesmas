@@ -39,6 +39,13 @@
                                class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                     </div>
                     <div>
+                        <label for="nama_sistem" class="block text-sm font-medium text-gray-700 mb-1">Nama Sistem / Subtitle Login</label>
+                        <input type="text" id="nama_sistem" name="nama_sistem" value="{{ old('nama_sistem', $settings['nama_sistem']) }}"
+                               class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                               placeholder="cth: Sistem Informasi Puskesmas">
+                        <p class="text-xs text-gray-400 mt-1">Teks ini ditampilkan sebagai subtitle di bawah nama instansi pada halaman login.</p>
+                    </div>
+                    <div>
                         <label for="alamat" class="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
                         <textarea id="alamat" name="alamat" rows="3"
                                   class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('alamat', $settings['alamat'] ?? '') }}</textarea>

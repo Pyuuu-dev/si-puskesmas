@@ -53,7 +53,7 @@
 
     {{-- Matrix Table --}}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto max-h-[75vh] overflow-y-auto">
+        <div id="tabel-absensi" class="overflow-x-auto max-h-[75vh] overflow-y-auto">
             <table class="w-full text-xs">
                 <thead class="sticky top-0 z-30">
                     {{-- Date row --}}
@@ -444,10 +444,26 @@
 <script>
 // Restore scroll position after reload
 (function() {
-    const y = sessionStorage.getItem('scrollY');
-    if (y !== null) {
+    const tbl = document.getElementById('tabel-absensi');
+    const pageY = sessionStorage.getItem('scrollY');
+    const tblTop = sessionStorage.getItem('tblScrollTop');
+    const tblLeft = sessionStorage.getItem('tblScrollLeft');
+
+    if (pageY !== null || tblTop !== null) {
         sessionStorage.removeItem('scrollY');
-        window.addEventListener('load', () => window.scrollTo({ top: parseInt(y), behavior: 'instant' }));
+        sessionStorage.removeItem('tblScrollTop');
+        sessionStorage.removeItem('tblScrollLeft');
+
+        const restore = () => {
+            if (pageY !== null) window.scrollTo({ top: parseInt(pageY), behavior: 'instant' });
+            if (tbl && tblTop !== null) {
+                tbl.scrollTop  = parseInt(tblTop);
+                tbl.scrollLeft = parseInt(tblLeft || 0);
+            }
+        };
+        // Run immediately + after full load (images/fonts may shift layout)
+        restore();
+        window.addEventListener('load', restore);
     }
 })();
 document.addEventListener('alpine:init', () => {
@@ -537,10 +553,11 @@ document.addEventListener('alpine:init', () => {
                 if (data.success) {
                     window.toast('Absensi disimpan', 'success');
                     this.showModal = false;
-                    const scrollY = window.scrollY;
+                    const tbl = document.getElementById('tabel-absensi');
+                    sessionStorage.setItem('scrollY', window.scrollY);
+                    sessionStorage.setItem('tblScrollTop', tbl ? tbl.scrollTop : 0);
+                    sessionStorage.setItem('tblScrollLeft', tbl ? tbl.scrollLeft : 0);
                     location.reload();
-                    // Restore scroll after reload via sessionStorage
-                    sessionStorage.setItem('scrollY', scrollY);
                 } else {
                     window.toast(data.message || 'Gagal menyimpan', 'error');
                 }
@@ -563,8 +580,10 @@ document.addEventListener('alpine:init', () => {
                 if (data.success) {
                     window.toast('Absensi dihapus', 'info');
                     this.showModal = false;
-                    const scrollY = window.scrollY;
-                    sessionStorage.setItem('scrollY', scrollY);
+                    const tbl = document.getElementById('tabel-absensi');
+                    sessionStorage.setItem('scrollY', window.scrollY);
+                    sessionStorage.setItem('tblScrollTop', tbl ? tbl.scrollTop : 0);
+                    sessionStorage.setItem('tblScrollLeft', tbl ? tbl.scrollLeft : 0);
                     location.reload();
                 } else {
                     window.toast(data.message || 'Gagal menghapus', 'error');

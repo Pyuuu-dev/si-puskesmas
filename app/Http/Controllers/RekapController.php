@@ -272,23 +272,25 @@ class RekapController extends Controller
             ->whereYear('tanggal', $tahun)->get()
             ->keyBy(fn($i) => $i->tanggal->format('Y-m-d'));
 
-        // Get all absensi
+        // Get all absensi — hanya slot pagi sebagai representasi harian (1 hari = 1 data)
         $absensiData = Absensi::whereMonth('tanggal', $bulan)
-            ->whereYear('tanggal', $tahun)->get();
+            ->whereYear('tanggal', $tahun)
+            ->where('slot', 'pagi')
+            ->get();
 
         // Build rekap per pegawai
         $rekap = [];
         foreach ($pegawai as $p) {
             $userAbsensi = $absensiData->where('user_id', $p->id);
             $rekap[$p->id] = [
-                'hadir' => $userAbsensi->where('status', 'hadir')->count(),
-                'izin' => $userAbsensi->where('status', 'izin')->count(),
-                'sakit' => $userAbsensi->where('status', 'sakit')->count(),
+                'hadir'         => $userAbsensi->where('status', 'hadir')->where('keterangan', '!=', 'tidak_apel')->count(),
+                'izin'          => $userAbsensi->where('status', 'izin')->count(),
+                'sakit'         => $userAbsensi->where('status', 'sakit')->count(),
                 'cuti_bersalin' => $userAbsensi->where('status', 'cuti_bersalin')->count(),
-                'cuti_tahunan' => $userAbsensi->where('status', 'cuti_tahunan')->count(),
-                'dinas_luar' => $userAbsensi->where('status', 'dinas_luar')->count(),
-                'ijin_belajar' => $userAbsensi->where('status', 'ijin_belajar')->count(),
-                'alfa' => $userAbsensi->where('status', 'alfa')->count(),
+                'cuti_tahunan'  => $userAbsensi->where('status', 'cuti_tahunan')->count(),
+                'dinas_luar'    => $userAbsensi->where('status', 'dinas_luar')->count(),
+                'ijin_belajar'  => $userAbsensi->where('status', 'ijin_belajar')->count(),
+                'alfa'          => $userAbsensi->where('status', 'alfa')->count(),
             ];
         }
 
@@ -336,9 +338,10 @@ class RekapController extends Controller
 
         // Color mapping (RGB hex without #)
         $statusColors = [
-            'H' => 'C8E6C9',    // green-100 (hadir)
-            'I' => 'FFF9C4',    // yellow-100 (izin)
-            'S' => 'FFE0B2',    // orange-100 (sakit)
+            'H'  => 'C8E6C9',   // green-100 (hadir apel)
+            'TA' => 'E5E7EB',   // gray-200 (tidak apel)
+            'I'  => 'FFF9C4',   // yellow-100 (izin)
+            'S'  => 'FFE0B2',   // orange-100 (sakit)
             'CB' => 'F8BBD0',   // rose-100 (cuti bersalin)
             'CT' => 'F8BBD0',   // rose-100 (cuti tahunan)
             'DL' => 'B3E5FC',   // sky-100 (dinas luar)
@@ -368,37 +371,38 @@ class RekapController extends Controller
 
         $colLetter = fn($n) => \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($n);
 
-        // Column layout for each section:
-        $fixedCols = 7;
-        $rekapCodes = ['H', 'I', 'S', 'CB', 'CT', 'DL', 'IB', 'TK'];
-        $totalColsPerSection = $fixedCols + $daysInMonth + count($rekapCodes);
-        $lastColPerSection = $colLetter($totalColsPerSection);
+        // Column layout — Apel Pagi/Siang punya kolom TA tambahan
+        $fixedCols       = 7;
+        $rekapCodesApel  = ['H', 'TA', 'I', 'S', 'CB', 'CT', 'DL', 'IB', 'TK'];
+        $rekapCodesHarian = ['H', 'I', 'S', 'CB', 'CT', 'DL', 'IB', 'TK'];
+
+        $totalColsApel   = $fixedCols + $daysInMonth + count($rekapCodesApel);
+        $totalColsHarian = $fixedCols + $daysInMonth + count($rekapCodesHarian);
+        $lastColApel     = $colLetter($totalColsApel);
+        $lastColHarian   = $colLetter($totalColsHarian);
 
         $spreadsheet = new Spreadsheet();
-        
-        // Store rekap data for gabungan sheet
-        $rekapGabungan = [];
-        
+
         // ========== SECTION 1: APEL PAGI ==========
         $sheet1 = $spreadsheet->getActiveSheet();
         $sheet1->setTitle('APEL PAGI');
-        $rekapPagi = $this->buildSection($sheet1, $pegawai, $matrix, $jamKerjaData, $dayMap, $namaHariMap, $holidays, 
-            $statusMap, $statusColors, $bulan, $tahun, $daysInMonth, $namaInstansi, $namaBulan, 
-            'pagi', 'APEL PAGI', $fixedCols, $rekapCodes, $totalColsPerSection, $lastColPerSection, $colLetter, true);
+        $rekapPagi = $this->buildSection($sheet1, $pegawai, $matrix, $jamKerjaData, $dayMap, $namaHariMap, $holidays,
+            $statusMap, $statusColors, $bulan, $tahun, $daysInMonth, $namaInstansi, $namaBulan,
+            'pagi', 'APEL PAGI', $fixedCols, $rekapCodesApel, $totalColsApel, $lastColApel, $colLetter, true);
 
         // ========== SECTION 2: APEL SIANG ==========
         $sheet2 = $spreadsheet->createSheet();
         $sheet2->setTitle('APEL SIANG');
-        $rekapSiang = $this->buildSection($sheet2, $pegawai, $matrix, $jamKerjaData, $dayMap, $namaHariMap, $holidays, 
-            $statusMap, $statusColors, $bulan, $tahun, $daysInMonth, $namaInstansi, $namaBulan, 
-            'sore', 'APEL SIANG', $fixedCols, $rekapCodes, $totalColsPerSection, $lastColPerSection, $colLetter, true);
+        $rekapSiang = $this->buildSection($sheet2, $pegawai, $matrix, $jamKerjaData, $dayMap, $namaHariMap, $holidays,
+            $statusMap, $statusColors, $bulan, $tahun, $daysInMonth, $namaInstansi, $namaBulan,
+            'sore', 'APEL SIANG', $fixedCols, $rekapCodesApel, $totalColsApel, $lastColApel, $colLetter, true);
 
         // ========== SECTION 3: KEHADIRAN HARIAN ==========
         $sheet3 = $spreadsheet->createSheet();
         $sheet3->setTitle('KEHADIRAN HARIAN');
-        $this->buildSection($sheet3, $pegawai, $matrix, $jamKerjaData, $dayMap, $namaHariMap, $holidays, 
-            $statusMap, $statusColors, $bulan, $tahun, $daysInMonth, $namaInstansi, $namaBulan, 
-            'harian', 'KEHADIRAN HARIAN', $fixedCols, $rekapCodes, $totalColsPerSection, $lastColPerSection, $colLetter, false);
+        $this->buildSection($sheet3, $pegawai, $matrix, $jamKerjaData, $dayMap, $namaHariMap, $holidays,
+            $statusMap, $statusColors, $bulan, $tahun, $daysInMonth, $namaInstansi, $namaBulan,
+            'harian', 'KEHADIRAN HARIAN', $fixedCols, $rekapCodesHarian, $totalColsHarian, $lastColHarian, $colLetter, false);
 
         // ========== SECTION 4: REKAP POIN KEDISIPLINAN ==========
         $sheet4 = $spreadsheet->createSheet();

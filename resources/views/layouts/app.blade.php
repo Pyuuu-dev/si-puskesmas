@@ -14,6 +14,7 @@
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak]{display:none!important}</style>
+    @stack('styles')
 </head>
 <body class="h-full font-[Inter] antialiased bg-gray-50" x-data="{ sidebarOpen: false }">
 
@@ -359,5 +360,6 @@
     </script>
 
     @yield('scripts')
+    @stack('scripts')
 </body>
 </html>

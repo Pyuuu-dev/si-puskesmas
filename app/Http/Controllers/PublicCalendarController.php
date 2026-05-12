@@ -148,54 +148,120 @@ class PublicCalendarController extends Controller
         $tahun = (int) $request->query('tahun', now()->year);
 
         $namaInstansi = Setting::get('nama_instansi', 'SI Puskesmas');
-        $namaBulan = Carbon::createFromDate($tahun, $bulan, 1)->locale('id')->isoFormat('MMMM');
+        $startDate    = Carbon::createFromDate($tahun, $bulan, 1);
+        $namaBulan    = $startDate->locale('id')->isoFormat('MMMM');
+        $daysInMonth  = $startDate->daysInMonth;
 
-        // Get all pegawai (exclude admin)
+        $namaHariMap = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+
+        // All pegawai (exclude admin)
         $allPegawai = User::where('role', '!=', 'super_admin')
-            ->orderBy('urutan')
-            ->orderBy('name')
-            ->get();
+            ->orderBy('urutan')->orderBy('name')->get();
 
-        // Get perjalanan dinas for this month
+        // Tanggal libur bulan ini
+        $tanggalLibur = TanggalLibur::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)->get()
+            ->keyBy(fn($i) => $i->tanggal->format('Y-m-d'));
+
+        // Perjalanan dinas bulan ini
         $dinasData = PerjalananDinas::with(['kegiatan.rincianMenu.menuKegiatan', 'user'])
             ->whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)
             ->orderBy('tanggal')
             ->get();
 
-        // Group by date
+        // Group dinas by date
         $dinasByDate = $dinasData->groupBy(fn($d) => $d->tanggal->format('Y-m-d'));
 
-        // Build table data
-        $tableData = [];
-        foreach ($dinasByDate as $dateStr => $records) {
-            $date = Carbon::parse($dateStr);
-            $namaHari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][$date->dayOfWeek];
-            
-            $pegawaiDinas = [];
-            foreach ($records as $record) {
-                $pegawaiDinas[] = [
-                    'nama' => $record->user->name ?? '-',
-                    'kegiatan' => $record->kegiatan->nama ?? '-',
-                    'kode' => $record->kegiatan->kode ?? '-',
-                ];
+        // Build per-date availability info
+        $dateInfo = [];
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $date    = Carbon::createFromDate($tahun, $bulan, $d);
+            $dateStr = $date->format('Y-m-d');
+
+            $isMinggu = $date->isSunday();
+            $isLibur  = $isMinggu;
+            $keterangan = $isMinggu ? 'Hari Minggu' : null;
+
+            if (isset($tanggalLibur[$dateStr])) {
+                $isLibur    = $tanggalLibur[$dateStr]->is_libur;
+                $keterangan = $tanggalLibur[$dateStr]->keterangan ?? ($isMinggu ? 'Hari Minggu' : null);
             }
 
-            $tableData[] = [
-                'tanggal' => $dateStr,
-                'tanggal_format' => $date->format('d/m/Y'),
-                'hari' => $namaHari,
-                'pegawai' => $pegawaiDinas,
+            // Pegawai yang sudah dinas hari ini
+            $pegawaiHariIni = [];
+            if (isset($dinasByDate[$dateStr])) {
+                foreach ($dinasByDate[$dateStr] as $dinas) {
+                    $pegawaiHariIni[] = [
+                        'id'       => $dinas->user_id,
+                        'nama'     => $dinas->user->name ?? '-',
+                        'kegiatan' => $dinas->kegiatan->nama ?? '-',
+                        'kode'     => $dinas->kegiatan->kode ?? '-',
+                    ];
+                }
+            }
+
+            // Status
+            if ($isLibur) {
+                $status = 'libur';
+            } elseif (count($pegawaiHariIni) > 0) {
+                $status = 'terisi';
+            } else {
+                $status = 'tersedia';
+            }
+
+            $dateInfo[$dateStr] = [
+                'tanggal'     => $dateStr,
+                'hari'        => $d,
+                'nama_hari'   => $namaHariMap[$date->dayOfWeek],
+                'is_libur'    => $isLibur,
+                'is_minggu'   => $isMinggu,
+                'keterangan'  => $keterangan,
+                'status'      => $status,
+                'pegawai'     => $pegawaiHariIni,
             ];
         }
 
-        // Pegawai yang belum pernah dinas bulan ini
-        $pegawaiDinasIds = $dinasData->pluck('user_id')->unique()->toArray();
+        // Tanggal tidak tersedia (libur + minggu)
+        $tanggalTidakTersedia = collect($dateInfo)->filter(fn($d) => $d['is_libur']);
+
+        // Tanggal sudah terisi dinas
+        $tanggalTerisi = collect($dateInfo)->filter(fn($d) => $d['status'] === 'terisi');
+
+        // Tanggal tersedia
+        $tanggalTersedia = collect($dateInfo)->filter(fn($d) => $d['status'] === 'tersedia');
+
+        // Rekap per pegawai: tanggal-tanggal mereka dinas
+        $rekapPegawai = [];
+        foreach ($allPegawai as $peg) {
+            $dinasPegawai = $dinasData->where('user_id', $peg->id);
+            $tanggalDinas = $dinasPegawai->map(fn($d) => [
+                'tanggal'    => $d->tanggal->format('Y-m-d'),
+                'tanggal_fmt'=> $d->tanggal->format('d/m'),
+                'nama_hari'  => $namaHariMap[$d->tanggal->dayOfWeek],
+                'kegiatan'   => $d->kegiatan->nama ?? '-',
+                'kode'       => $d->kegiatan->kode ?? '-',
+            ])->values();
+
+            $rekapPegawai[] = [
+                'id'           => $peg->id,
+                'nama'         => $peg->name,
+                'jabatan'      => $peg->jabatan ?? '-',
+                'penempatan'   => $peg->penempatan ?? '-',
+                'jumlah'       => $dinasPegawai->count(),
+                'tanggal_list' => $tanggalDinas,
+                'sudah_dinas'  => $dinasPegawai->count() > 0,
+            ];
+        }
+
+        // Pegawai belum dinas
+        $pegawaiDinasIds  = $dinasData->pluck('user_id')->unique()->toArray();
         $pegawaiBelumDinas = $allPegawai->whereNotIn('id', $pegawaiDinasIds)->values();
 
         return view('public.dinas', compact(
-            'tableData', 'bulan', 'tahun', 'namaBulan', 'namaInstansi',
-            'allPegawai', 'pegawaiBelumDinas', 'dinasData'
+            'dateInfo', 'tanggalTidakTersedia', 'tanggalTerisi', 'tanggalTersedia',
+            'rekapPegawai', 'pegawaiBelumDinas', 'allPegawai', 'dinasData',
+            'bulan', 'tahun', 'namaBulan', 'namaInstansi', 'daysInMonth'
         ));
     }
 }

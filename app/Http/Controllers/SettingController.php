@@ -14,6 +14,7 @@ class SettingController extends Controller
     {
         $settings = [
             'nama_instansi' => Setting::get('nama_instansi', 'UPTD Puskesmas Angkat'),
+            'nama_sistem'   => Setting::get('nama_sistem', 'Sistem Informasi Puskesmas'),
             'alamat' => Setting::get('alamat', ''),
             'telepon' => Setting::get('telepon', ''),
             'email_instansi' => Setting::get('email_instansi', ''),
@@ -37,6 +38,7 @@ class SettingController extends Controller
     {
         $validated = $request->validate([
             'nama_instansi' => 'required|string|max:255',
+            'nama_sistem'   => 'nullable|string|max:255',
             'alamat' => 'nullable|string|max:500',
             'telepon' => 'nullable|string|max:20',
             'email_instansi' => 'nullable|email|max:255',
