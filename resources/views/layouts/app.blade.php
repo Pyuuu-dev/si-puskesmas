@@ -166,8 +166,13 @@
         {{-- Sidebar footer / user info --}}
         <div class="border-t border-white/10 px-4 py-4">
             <div class="flex items-center gap-3">
-                <div class="flex items-center justify-center w-9 h-9 rounded-full bg-indigo-500 text-white text-sm font-bold">
-                    {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                @php $userFoto = auth()->user()->foto; @endphp
+                <div class="shrink-0 w-9 h-9 rounded-full overflow-hidden bg-indigo-500 flex items-center justify-center text-white text-sm font-bold">
+                    @if($userFoto)
+                        <img src="{{ asset('storage/' . $userFoto) }}" alt="" class="w-full h-full object-cover">
+                    @else
+                        {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                    @endif
                 </div>
                 <div class="min-w-0 flex-1">
                     <p class="text-sm font-medium text-white truncate">{{ auth()->user()->name }}</p>
@@ -202,8 +207,12 @@
                     {{-- User dropdown --}}
                     <div class="relative">
                         <button @click="userMenu = !userMenu" class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white text-xs font-bold">
-                                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                            <div class="shrink-0 w-8 h-8 rounded-full overflow-hidden bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                                @if(auth()->user()->foto)
+                                    <img src="{{ asset('storage/' . auth()->user()->foto) }}" alt="" class="w-full h-full object-cover">
+                                @else
+                                    {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                                @endif
                             </div>
                             <span class="hidden sm:block text-sm font-medium text-gray-700">{{ auth()->user()->name }}</span>
                             <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">

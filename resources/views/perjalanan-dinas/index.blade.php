@@ -60,6 +60,16 @@
                 Reset
             </a>
             @endif
+            <a href="{{ route('public.dinas', ['bulan' => $bulan, 'tahun' => $tahun]) }}"
+               target="_blank"
+               class="inline-flex items-center gap-1.5 px-3 py-2 border border-indigo-300 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-50 transition-colors"
+               title="Buka halaman publik di tab baru">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                </svg>
+                Versi Publik
+            </a>
         </form>
     </div>
 
@@ -75,8 +85,9 @@
             <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-purple-200"></span> Ijin Belajar</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-200"></span> Tidak Hadir</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-100 border border-red-300"></span> Libur</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-900"></span> <span class="font-semibold">Diblokir</span></span>
         </div>
-        <p class="text-[10px] text-blue-500 mt-2">Klik pada sel tanggal untuk memilih kegiatan. Sel yang sudah terisi status absensi tidak bisa diubah dari sini.</p>
+        <p class="text-[10px] text-blue-500 mt-2">Klik pada sel tanggal untuk memilih kegiatan. Sel <strong>hitam</strong> = tidak tersedia (diblokir admin). Admin dapat klik sel hitam untuk melihat alasan atau membuka blokir.</p>
     </div>
 
     {{-- Matrix Table --}}
@@ -139,9 +150,17 @@
 
                             @foreach($dates as $date)
                                 @php
-                                    $cellData = $matrix[$p->id][$date['tanggal']] ?? null;
+                                    $cellData     = $matrix[$p->id][$date['tanggal']] ?? null;
                                     $absensiStatus = $absensiMatrix[$p->id][$date['tanggal']] ?? null;
                                     if ($cellData) $totalDinas++;
+
+                                    // Cek blokir: per orang+tanggal ATAU seluruh tanggal
+                                    $blokirKet = $blokirMatrix[$p->id][$date['tanggal']]
+                                        ?? $blokirMatrix['all'][$date['tanggal']]
+                                        ?? null;
+                                    $isBlokir = $blokirKet !== null;
+                                    // Blokir per orang atau per tanggal?
+                                    $blokirUserId = isset($blokirMatrix[$p->id][$date['tanggal']]) ? $p->id : null;
 
                                     // Warna status absensi
                                     $absensiColors = [
@@ -167,11 +186,37 @@
                                 @endphp
 
                                 @if($absensiStatus)
+                                    {{-- Status absensi (izin/sakit/dll) --}}
                                     <td class="px-0 py-0 text-center border-r border-gray-200">
                                         <div class="w-full h-8 flex items-center justify-center text-[10px] font-bold {{ $absensiColors[$absensiStatus] ?? 'bg-gray-200 text-gray-800' }}" title="{{ ucfirst(str_replace('_', ' ', $absensiStatus)) }}">
                                             {{ $absensiLabels[$absensiStatus] ?? '?' }}
                                         </div>
                                     </td>
+                                @elseif($isBlokir)
+                                    {{-- SEL HITAM: diblokir admin --}}
+                                    @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+                                        {{-- Admin: bisa klik untuk lihat keterangan + unblokir --}}
+                                        <td class="px-0 py-0 text-center border-r border-gray-200 cursor-pointer"
+                                            @click="$dispatch('open-blokir-modal', {
+                                                userId: {{ $p->id }},
+                                                namaUser: '{{ addslashes($p->name) }}',
+                                                tanggal: '{{ $date['tanggal'] }}',
+                                                keterangan: '{{ addslashes($blokirKet) }}',
+                                                blokirUserId: {{ $blokirUserId ?? 'null' }},
+                                                mode: 'view'
+                                            })">
+                                            <div class="w-full h-8 flex items-center justify-center bg-gray-900 hover:bg-gray-700 transition-colors" title="Diblokir — klik untuk detail">
+                                                <svg class="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0 1 10 0v2a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2zm8-2v2H7V7a3 3 0 0 1 6 0z" clip-rule="evenodd"/>
+                                                </svg>
+                                            </div>
+                                        </td>
+                                    @else
+                                        {{-- Non-admin: hanya tampil hitam --}}
+                                        <td class="px-0 py-0 text-center border-r border-gray-200">
+                                            <div class="w-full h-8 bg-gray-900" title="Tidak tersedia"></div>
+                                        </td>
+                                    @endif
                                 @else
                                     <td class="px-0 py-0 text-center border-r border-gray-200 {{ $date['is_weekend'] ? 'bg-red-50/50' : '' }}"
                                         x-data="dinasCell({
@@ -192,29 +237,37 @@
                                                 x-text="kode"
                                             ></button>
 
-                                            {{-- Simplified Dropdown: Only show kode kegiatan --}}
+                                            {{-- Dropdown: kode + nama kegiatan --}}
                                             <div
                                                 x-show="open"
                                                 @click.away="open = false"
                                                 x-transition
-                                                class="absolute z-30 mt-0.5 left-1/2 -translate-x-1/2 w-56 bg-white rounded-lg shadow-xl ring-1 ring-black/10 py-1 text-left max-h-72 overflow-y-auto"
+                                                class="absolute z-30 mt-0.5 left-1/2 -translate-x-1/2 w-72 bg-white rounded-lg shadow-xl ring-1 ring-black/10 py-1 text-left max-h-72 overflow-y-auto"
                                                 x-cloak
                                             >
                                                 {{-- Search input --}}
-                                                <div class="px-2 py-1.5 border-b border-gray-100">
-                                                    <input type="text" x-model="search" placeholder="Cari kode..." class="w-full text-xs border-gray-200 rounded px-2 py-1 focus:border-indigo-500 focus:ring-indigo-500" @click.stop>
+                                                <div class="px-2 py-1.5 border-b border-gray-100 sticky top-0 bg-white">
+                                                    <input type="text" x-model="search" placeholder="Cari kode atau nama..." class="w-full text-xs border-gray-200 rounded px-2 py-1 focus:border-indigo-500 focus:ring-indigo-500" @click.stop>
                                                 </div>
 
                                                 @foreach($menuKegiatan as $menu)
                                                     @foreach($menu->rincianMenu as $rincian)
                                                         @foreach($rincian->kegiatan as $keg)
+                                                            @php
+                                                                $kegKode = $keg->kode ?? substr($keg->nama, 0, 5);
+                                                                $kegNama = $keg->nama;
+                                                                $searchHaystack = strtolower(($keg->kode ?? '') . ' ' . $keg->nama);
+                                                            @endphp
                                                             <button
-                                                                x-show="!search || '{{ strtolower($keg->kode ?? $keg->nama) }}'.includes(search.toLowerCase())"
-                                                                @click="setKegiatan({{ $keg->id }}, '{{ $keg->kode ?? substr($keg->nama, 0, 5) }}', '{{ $menu->warna }}')"
-                                                                class="w-full px-3 py-1.5 text-left text-xs hover:bg-indigo-50 flex items-center gap-2"
+                                                                x-show="!search || '{{ $searchHaystack }}'.includes(search.toLowerCase())"
+                                                                @click="setKegiatan({{ $keg->id }}, '{{ addslashes($kegKode) }}', '{{ $menu->warna }}')"
+                                                                class="w-full px-3 py-2 text-left hover:bg-indigo-50 flex items-start gap-2 border-b border-gray-50 last:border-0"
                                                             >
-                                                                <span class="w-5 h-5 rounded shrink-0 flex items-center justify-center text-[8px] font-bold text-white" style="background-color: {{ $menu->warna }}">{{ $keg->kode ?? '?' }}</span>
-                                                                <span class="font-medium text-gray-700">{{ $keg->kode ?? substr($keg->nama, 0, 10) }}</span>
+                                                                <span class="w-6 h-6 rounded shrink-0 flex items-center justify-center text-[9px] font-bold text-white mt-0.5" style="background-color: {{ $menu->warna }}">{{ $kegKode }}</span>
+                                                                <span class="min-w-0 flex-1">
+                                                                    <span class="block text-xs font-semibold text-gray-800 leading-tight">{{ $kegKode }}</span>
+                                                                    <span class="block text-[10px] text-gray-500 leading-snug mt-0.5">{{ $kegNama }}</span>
+                                                                </span>
                                                             </button>
                                                         @endforeach
                                                     @endforeach
@@ -223,8 +276,22 @@
                                                 <div class="border-t border-gray-200 mt-1 pt-1">
                                                     <button @click="clearKegiatan()" class="w-full px-3 py-1.5 text-left text-xs text-red-500 hover:bg-red-50 flex items-center gap-2">
                                                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                                                        Hapus
+                                                        Hapus Dinas
                                                     </button>
+                                                    @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+                                                    <button @click="open=false; $dispatch('open-blokir-modal', {
+                                                            userId: userId,
+                                                            namaUser: '{{ addslashes($p->name) }}',
+                                                            tanggal: tanggal,
+                                                            keterangan: '',
+                                                            blokirUserId: userId,
+                                                            mode: 'blokir'
+                                                        })"
+                                                        class="w-full px-3 py-1.5 text-left text-xs font-medium text-gray-900 bg-white border border-gray-300 hover:bg-gray-900 hover:text-white hover:border-gray-900 flex items-center gap-2 transition-colors">
+                                                        <svg class="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0 1 10 0v2a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2zm8-2v2H7V7a3 3 0 0 1 6 0z" clip-rule="evenodd"/></svg>
+                                                        Blokir Sel Ini
+                                                    </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                         </div>
@@ -343,6 +410,144 @@
         </div>
     </div>
 </div>
+
+{{-- ===== MODAL BLOKIR/UNBLOKIR ===== --}}
+@if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+<div x-data="blokirModal()" @open-blokir-modal.window="open($event.detail)">
+
+    {{-- Backdrop + Modal --}}
+    <div x-show="show"
+         x-cloak
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+         @click.self="show = false">
+
+        <div x-show="show"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+             @click.stop>
+
+            {{-- Header — hitam saat view, putih saat blokir --}}
+            <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between"
+                 :class="mode === 'view' ? 'bg-gray-900 border-gray-700' : 'bg-white'">
+                <div>
+                    <h3 class="font-bold text-sm" :class="mode === 'view' ? 'text-white' : 'text-gray-900'">
+                        <span x-show="mode === 'view'">🔒 Sel Diblokir</span>
+                        <span x-show="mode !== 'view'">🔒 Blokir Sel</span>
+                    </h3>
+                    <p class="text-xs mt-0.5"
+                       :class="mode === 'view' ? 'text-gray-400' : 'text-gray-500'"
+                       x-text="namaUser + ' — ' + tanggalFormatted"></p>
+                </div>
+                <button @click="show = false"
+                        class="p-1.5 rounded-lg transition-colors"
+                        :class="mode === 'view' ? 'text-gray-400 hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100'">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- Body --}}
+            <div class="p-5 space-y-4">
+
+                {{-- MODE VIEW: lihat keterangan + unblokir --}}
+                <div x-show="mode === 'view'" class="space-y-4">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <p class="text-xs font-medium text-gray-500 mb-1">Alasan Blokir:</p>
+                        <p class="text-sm text-gray-800 font-medium"
+                           x-text="keterangan || '(Tidak ada keterangan)'"></p>
+                    </div>
+
+                    {{-- Info scope blokir --}}
+                    <p class="text-xs text-gray-500"
+                       x-text="blokirUserId ? 'Blokir berlaku untuk: ' + namaUser + ' saja.' : 'Blokir berlaku untuk: seluruh tanggal ini (semua pegawai).'">
+                    </p>
+
+                    <div class="flex flex-col gap-2">
+                        {{-- Buka blokir sesuai scope aslinya --}}
+                        <button @click="doUnblokir()"
+                                :disabled="saving"
+                                class="w-full px-4 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                            <span x-text="saving ? 'Memproses...' : (blokirUserId ? '🔓 Buka Blokir Orang Ini' : '🔓 Buka Blokir Tanggal Ini')"></span>
+                        </button>
+
+                        {{-- Jika blokir per orang, tampilkan juga opsi buka blokir seluruh tanggal --}}
+                        <button x-show="!blokirUserId === false"
+                                @click="doUnblokirTanggal()"
+                                :disabled="saving"
+                                class="w-full px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                            <span x-text="saving ? 'Memproses...' : '🔓 Buka Blokir Seluruh Tanggal'"></span>
+                        </button>
+
+                        <button @click="show = false"
+                                class="w-full px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
+                            Tutup
+                        </button>
+                    </div>
+                </div>
+
+                {{-- MODE BLOKIR: form --}}
+                <div x-show="mode === 'blokir'" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1.5">
+                            Alasan Blokir <span class="text-gray-400 font-normal">(opsional)</span>
+                        </label>
+                        <textarea x-model="keterangan" rows="3"
+                                  placeholder="cth: Ada dinas dari kantor lain, kondisi tertentu, dll"
+                                  class="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-gray-900 focus:ring-gray-900 resize-none"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-2">Blokir untuk:</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" @click="scope = 'orang'"
+                                    class="px-3 py-2.5 rounded-lg text-xs font-semibold border-2 transition-all"
+                                    :style="scope === 'orang'
+                                        ? 'background-color:#111827; border-color:#111827; color:#ffffff;'
+                                        : 'background-color:#ffffff; border-color:#d1d5db; color:#374151;'">
+                                <span :style="scope === 'orang' ? 'color:#ffffff' : 'color:#374151'">👤 Orang ini saja</span>
+                            </button>
+                            <button type="button" @click="scope = 'tanggal'"
+                                    class="px-3 py-2.5 rounded-lg text-xs font-semibold border-2 transition-all"
+                                    :style="scope === 'tanggal'
+                                        ? 'background-color:#111827; border-color:#111827; color:#ffffff;'
+                                        : 'background-color:#ffffff; border-color:#d1d5db; color:#374151;'">
+                                <span :style="scope === 'tanggal' ? 'color:#ffffff' : 'color:#374151'">📅 Seluruh tanggal</span>
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-1.5"
+                           x-text="scope === 'orang'
+                               ? 'Hanya ' + namaUser + ' yang tidak bisa dinas di tanggal ini.'
+                               : 'Semua pegawai tidak bisa dinas di tanggal ini.'">
+                        </p>
+                    </div>
+
+                    <div class="flex gap-2 pt-1">
+                        <button type="button" @click="show = false"
+                                class="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                            Batal
+                        </button>
+                        <button type="button" @click="doBlokir()"
+                                :disabled="saving"
+                                class="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-black transition-colors disabled:opacity-50">
+                            <span x-text="saving ? 'Memproses...' : '🔒 Blokir Sel'"></span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 @endsection
 
 @section('scripts')
@@ -413,6 +618,10 @@ document.addEventListener('alpine:init', () => {
         async clearKegiatan() {
             if (this.saving) return;
             if (!this.kegiatanId && !this.kode) {
+                this.open = false;
+                return;
+            }
+            if (!confirm('Yakin ingin menghapus data perjalanan dinas ini?')) {
                 this.open = false;
                 return;
             }
@@ -516,6 +725,118 @@ document.addEventListener('alpine:init', () => {
             }
             this.deleting = false;
         }
+    }));
+
+    // ===== BLOKIR MODAL =====
+    Alpine.data('blokirModal', () => ({
+        show: false,
+        saving: false,
+        mode: 'blokir',   // 'blokir' | 'view'
+        scope: 'orang',   // 'orang' | 'tanggal'
+        userId: null,
+        namaUser: '',
+        tanggal: '',
+        tanggalFormatted: '',
+        keterangan: '',
+        blokirUserId: null,
+
+        open(detail) {
+            this.mode         = detail.mode;
+            this.userId       = detail.userId;
+            this.namaUser     = detail.namaUser;
+            this.tanggal      = detail.tanggal;
+            this.keterangan   = detail.keterangan || '';
+            this.blokirUserId = detail.blokirUserId;
+            this.scope        = 'orang';
+            this.saving       = false;
+
+            // Format tanggal
+            const hariMap = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+            const d = new Date(detail.tanggal + 'T00:00:00');
+            const [y, m, day] = detail.tanggal.split('-');
+            const bulanMap = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+            this.tanggalFormatted = hariMap[d.getDay()] + ', ' + parseInt(day) + ' ' + bulanMap[parseInt(m)-1] + ' ' + y;
+
+            this.show = true;
+        },
+
+        async doBlokir() {
+            if (this.saving) return;
+            this.saving = true;
+
+            const payload = {
+                tanggal: this.tanggal,
+                keterangan: this.keterangan || null,
+            };
+            if (this.scope === 'orang') {
+                payload.user_id = this.userId;
+            }
+            // scope 'tanggal' → tidak kirim user_id (null = blokir seluruh tanggal)
+
+            try {
+                const res = await window.api.post('/perjalanan-dinas/blokir', payload);
+                const data = await res.json();
+                if (data.success) {
+                    window.toast('Sel berhasil diblokir', 'success');
+                    this.show = false;
+                    location.reload();
+                } else {
+                    window.toast(data.message || 'Gagal memblokir', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+            this.saving = false;
+        },
+
+        async doUnblokir() {
+            if (this.saving) return;
+            this.saving = true;
+
+            const payload = { tanggal: this.tanggal };
+            if (this.blokirUserId) {
+                payload.user_id = this.blokirUserId;
+            }
+            // blokirUserId null → unblokir seluruh tanggal (whereNull user_id)
+
+            try {
+                const res = await window.api.post('/perjalanan-dinas/blokir/hapus', payload);
+                const data = await res.json();
+                if (data.success) {
+                    window.toast('Blokir berhasil dibuka', 'success');
+                    this.show = false;
+                    location.reload();
+                } else {
+                    window.toast(data.message || 'Gagal membuka blokir', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+            this.saving = false;
+        },
+
+        async doUnblokirTanggal() {
+            if (this.saving) return;
+            if (!confirm('Buka blokir untuk seluruh tanggal ini? Semua pegawai yang diblokir di tanggal ini akan dibuka.')) return;
+            this.saving = true;
+
+            try {
+                const res = await window.api.post('/perjalanan-dinas/blokir/hapus-tanggal', {
+                    tanggal: this.tanggal,
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.toast('Blokir seluruh tanggal berhasil dibuka', 'success');
+                    this.show = false;
+                    location.reload();
+                } else {
+                    window.toast(data.message || 'Gagal membuka blokir', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+            this.saving = false;
+        },
     }));
 });
 </script>

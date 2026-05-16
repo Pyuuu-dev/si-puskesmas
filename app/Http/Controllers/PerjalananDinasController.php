@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Absensi;
+use App\Models\DinasBlokir;
 use App\Models\InfoTanggal;
 use App\Models\Kegiatan;
 use App\Models\KodeKegiatan;
@@ -154,6 +155,25 @@ class PerjalananDinasController extends Controller
 
         $namaBulan = Carbon::createFromDate($tahun, $bulan, 1)->locale('id')->isoFormat('MMMM');
 
+        // Get blokir data for this month
+        // blokirMatrix[tanggal] = keterangan (blokir seluruh tanggal, user_id null)
+        // blokirMatrix[user_id][tanggal] = keterangan (blokir per orang)
+        $blokirData = DinasBlokir::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->get();
+
+        $blokirMatrix = [];
+        foreach ($blokirData as $blokir) {
+            $dateStr = $blokir->tanggal->format('Y-m-d');
+            if ($blokir->user_id === null) {
+                // Blokir seluruh tanggal
+                $blokirMatrix['all'][$dateStr] = $blokir->keterangan ?? 'Tanggal diblokir';
+            } else {
+                // Blokir per orang
+                $blokirMatrix[$blokir->user_id][$dateStr] = $blokir->keterangan ?? 'Diblokir';
+            }
+        }
+
         return view('perjalanan-dinas.index', compact(
             'pegawai',
             'allPegawai',
@@ -166,7 +186,8 @@ class PerjalananDinasController extends Controller
             'daysInMonth',
             'kodeKegiatan',
             'menuKegiatan',
-            'absensiMatrix'
+            'absensiMatrix',
+            'blokirMatrix'
         ));
     }
 
@@ -232,6 +253,75 @@ class PerjalananDinasController extends Controller
         return response()->json([
             'success' => true,
             'message' => $deleted > 0 ? 'Data berhasil dihapus.' : 'Data tidak ditemukan.',
+        ]);
+    }
+
+    public function blokir(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id'    => 'nullable|exists:users,id',
+            'tanggal'    => 'required|date',
+            'keterangan' => 'nullable|string|max:255',
+        ]);
+
+        $tanggal = date('Y-m-d', strtotime($validated['tanggal']));
+
+        DinasBlokir::updateOrCreate(
+            [
+                'user_id' => $validated['user_id'] ?? null,
+                'tanggal' => $tanggal,
+            ],
+            [
+                'keterangan' => $validated['keterangan'] ?? null,
+                'created_by' => auth()->id(),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sel berhasil diblokir.',
+        ]);
+    }
+
+    public function unblokir(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'nullable|exists:users,id',
+            'tanggal' => 'required|date',
+        ]);
+
+        $tanggal = date('Y-m-d', strtotime($validated['tanggal']));
+
+        DinasBlokir::whereDate('tanggal', $tanggal)
+            ->where(function ($q) use ($validated) {
+                if (!empty($validated['user_id'])) {
+                    $q->where('user_id', $validated['user_id']);
+                } else {
+                    $q->whereNull('user_id');
+                }
+            })
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Blokir berhasil dibuka.',
+        ]);
+    }
+
+    public function unblokirTanggal(Request $request)
+    {
+        $validated = $request->validate([
+            'tanggal' => 'required|date',
+        ]);
+
+        $tanggal = date('Y-m-d', strtotime($validated['tanggal']));
+
+        // Hapus semua blokir di tanggal ini (per orang maupun seluruh tanggal)
+        $deleted = DinasBlokir::whereDate('tanggal', $tanggal)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Semua blokir di tanggal ini berhasil dibuka ({$deleted} data).",
         ]);
     }
 }

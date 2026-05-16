@@ -402,7 +402,20 @@
                                     ✗ Tidak Apel
                                 </button>
                             </div>
-                            <input type="time" x-model="modalJamPagi" class="w-full text-sm border-green-300 rounded-lg px-3 py-2 focus:border-green-500 focus:ring-green-500" placeholder="Jam kehadiran">
+                            <input type="text"
+                                   x-model="modalJamPagi"
+                                   @paste="onPastePagi($event)"
+                                   @blur="onBlurPagi()"
+                                   @input="errorJamPagi = ''"
+                                   inputmode="numeric"
+                                   maxlength="5"
+                                   placeholder="HH:MM (cth: 07:50)"
+                                   class="w-full text-sm rounded-lg px-3 py-2 font-mono"
+                                   :class="errorJamPagi
+                                       ? 'border-2 border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500'
+                                       : 'border border-green-300 focus:border-green-500 focus:ring-green-500'">
+                            <p x-show="errorJamPagi" class="text-[10px] text-red-600 mt-1 font-medium" x-text="errorJamPagi"></p>
+                            <p x-show="!errorJamPagi" class="text-[10px] text-green-700 mt-1">Bisa paste dari spreadsheet (07:50, 7:50 AM, 0750, dll)</p>
                         </div>
 
                         {{-- Apel Siang --}}
@@ -416,7 +429,20 @@
                                     ✗ Tidak Apel
                                 </button>
                             </div>
-                            <input type="time" x-model="modalJamSiang" class="w-full text-sm border-blue-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-blue-500" placeholder="Jam kehadiran">
+                            <input type="text"
+                                   x-model="modalJamSiang"
+                                   @paste="onPasteSiang($event)"
+                                   @blur="onBlurSiang()"
+                                   @input="errorJamSiang = ''"
+                                   inputmode="numeric"
+                                   maxlength="5"
+                                   placeholder="HH:MM (cth: 14:30)"
+                                   class="w-full text-sm rounded-lg px-3 py-2 font-mono"
+                                   :class="errorJamSiang
+                                       ? 'border-2 border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500'
+                                       : 'border border-blue-300 focus:border-blue-500 focus:ring-blue-500'">
+                            <p x-show="errorJamSiang" class="text-[10px] text-red-600 mt-1 font-medium" x-text="errorJamSiang"></p>
+                            <p x-show="!errorJamSiang" class="text-[10px] text-blue-700 mt-1">Bisa paste dari spreadsheet (14:30, 2:30 PM, 1430, dll)</p>
                         </div>
                     </div>
                 </div>
@@ -479,6 +505,8 @@ document.addEventListener('alpine:init', () => {
         modalJamPagi: '',
         modalApelSiang: 'apel',
         modalJamSiang: '',
+        errorJamPagi: '',
+        errorJamSiang: '',
 
         openModal(userId, name, tanggal, pagiStatus, pagiJam, pagiKet, soreStatus, soreJam, soreKet) {
             this.modalUserId = userId;
@@ -523,6 +551,10 @@ document.addEventListener('alpine:init', () => {
                 this.modalJamSiang = '';
             }
 
+            // Reset error state
+            this.errorJamPagi = '';
+            this.errorJamSiang = '';
+
             this.showModal = true;
         },
 
@@ -533,6 +565,25 @@ document.addEventListener('alpine:init', () => {
             if (this.modalStatusKehadiran === 'hadir') {
                 if (!this.modalJamPagi || !this.modalJamSiang) {
                     window.toast('Jam kehadiran wajib diisi untuk kedua apel', 'error');
+                    return;
+                }
+                // Final parse untuk pastikan format valid (in case user belum blur)
+                const cekPagi = this.parseJam(this.modalJamPagi);
+                const cekSiang = this.parseJam(this.modalJamSiang);
+                if (!cekPagi) {
+                    this.errorJamPagi = 'Format jam tidak valid';
+                    window.toast('Format jam Apel Pagi tidak valid', 'error');
+                    return;
+                }
+                if (!cekSiang) {
+                    this.errorJamSiang = 'Format jam tidak valid';
+                    window.toast('Format jam Apel Siang tidak valid', 'error');
+                    return;
+                }
+                this.modalJamPagi = cekPagi;
+                this.modalJamSiang = cekSiang;
+                if (this.errorJamPagi || this.errorJamSiang) {
+                    window.toast('Format jam tidak valid, perbaiki dulu', 'error');
                     return;
                 }
             }
@@ -592,6 +643,106 @@ document.addEventListener('alpine:init', () => {
                 window.toast('Terjadi kesalahan', 'error');
             }
             this.saving = false;
+        },
+
+        // ===== JAM PARSER & HANDLERS =====
+        // Parse berbagai format jam ke "HH:MM" 24-jam, return null jika invalid
+        parseJam(input) {
+            if (input === null || input === undefined) return null;
+            let s = String(input).trim().toUpperCase();
+            if (!s) return null;
+
+            // Detect AM/PM
+            const isPM = /\bPM\b/.test(s);
+            const isAM = /\bAM\b/.test(s);
+            s = s.replace(/\b(AM|PM)\b/g, '').trim();
+
+            let h = NaN, m = NaN;
+
+            if (s.includes(':')) {
+                // Format "H:M" atau "H:M:S"
+                const parts = s.split(':');
+                h = parseInt(parts[0], 10);
+                m = parseInt(parts[1], 10);
+            } else {
+                // Pure digit "750", "0750", "1430", "8"
+                const digits = s.replace(/\D/g, '');
+                if (digits.length === 4) {
+                    h = parseInt(digits.slice(0, 2), 10);
+                    m = parseInt(digits.slice(2), 10);
+                } else if (digits.length === 3) {
+                    h = parseInt(digits.slice(0, 1), 10);
+                    m = parseInt(digits.slice(1), 10);
+                } else if (digits.length === 1 || digits.length === 2) {
+                    h = parseInt(digits, 10);
+                    m = 0;
+                } else {
+                    return null;
+                }
+            }
+
+            if (isNaN(h) || isNaN(m)) return null;
+
+            // Apply AM/PM conversion
+            if (isPM && h < 12) h += 12;
+            if (isAM && h === 12) h = 0;
+
+            // Validate range
+            if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+
+            return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+        },
+
+        onPastePagi(e) {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            const parsed = this.parseJam(text);
+            if (parsed) {
+                this.modalJamPagi = parsed;
+                this.errorJamPagi = '';
+            } else {
+                this.errorJamPagi = 'Format tidak valid: "' + (text || '').substring(0, 20) + '"';
+            }
+        },
+
+        onPasteSiang(e) {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            const parsed = this.parseJam(text);
+            if (parsed) {
+                this.modalJamSiang = parsed;
+                this.errorJamSiang = '';
+            } else {
+                this.errorJamSiang = 'Format tidak valid: "' + (text || '').substring(0, 20) + '"';
+            }
+        },
+
+        onBlurPagi() {
+            if (!this.modalJamPagi) {
+                this.errorJamPagi = '';
+                return;
+            }
+            const parsed = this.parseJam(this.modalJamPagi);
+            if (parsed) {
+                this.modalJamPagi = parsed;
+                this.errorJamPagi = '';
+            } else {
+                this.errorJamPagi = 'Format jam tidak valid';
+            }
+        },
+
+        onBlurSiang() {
+            if (!this.modalJamSiang) {
+                this.errorJamSiang = '';
+                return;
+            }
+            const parsed = this.parseJam(this.modalJamSiang);
+            if (parsed) {
+                this.modalJamSiang = parsed;
+                this.errorJamSiang = '';
+            } else {
+                this.errorJamSiang = 'Format jam tidak valid';
+            }
         }
     }));
 

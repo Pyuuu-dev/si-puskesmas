@@ -115,4 +115,73 @@ class KodeKegiatanController extends Controller
         Kegiatan::findOrFail($id)->delete();
         return response()->json(['success' => true, 'message' => 'Kegiatan berhasil dihapus.']);
     }
+
+    /**
+     * GET pemakai kode: list pegawai + tanggal yang pakai kegiatan ini.
+     * Filter via query string ?bulan=5&tahun=2026
+     */
+    public function pemakai(Request $request, $id)
+    {
+        $kegiatan = Kegiatan::with('rincianMenu.menuKegiatan')->findOrFail($id);
+
+        $bulan = (int) $request->query('bulan', now()->month);
+        $tahun = (int) $request->query('tahun', now()->year);
+
+        $namaHariMap = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        $namaBulanMap = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+        $records = \App\Models\PerjalananDinas::where('kegiatan_id', $id)
+            ->whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->with('user')
+            ->orderBy('tanggal')
+            ->get();
+
+        // Group per pegawai
+        $grouped = [];
+        foreach ($records as $rec) {
+            $userId = $rec->user_id;
+            if (!isset($grouped[$userId])) {
+                $grouped[$userId] = [
+                    'user_id'    => $userId,
+                    'nama'       => $rec->user->name ?? '-',
+                    'jabatan'    => $rec->user->jabatan ?? '-',
+                    'penempatan' => ucfirst($rec->user->penempatan ?? 'induk'),
+                    'tanggal'    => [],
+                ];
+            }
+            $tgl = $rec->tanggal;
+            $grouped[$userId]['tanggal'][] = [
+                'iso'      => $tgl->format('Y-m-d'),
+                'display'  => $namaHariMap[$tgl->dayOfWeek] . ', ' . $tgl->day . ' ' . $namaBulanMap[$tgl->month] . ' ' . $tgl->year,
+                'short'    => $tgl->format('d/m'),
+                'hari'     => substr($namaHariMap[$tgl->dayOfWeek], 0, 3),
+            ];
+        }
+
+        // Sort: pegawai dengan jumlah terbanyak di atas
+        $list = collect(array_values($grouped))
+            ->sortByDesc(fn($p) => count($p['tanggal']))
+            ->values()
+            ->map(function ($p) {
+                $p['jumlah'] = count($p['tanggal']);
+                return $p;
+            })
+            ->all();
+
+        return response()->json([
+            'success' => true,
+            'kegiatan' => [
+                'id'    => $kegiatan->id,
+                'kode'  => $kegiatan->kode,
+                'nama'  => $kegiatan->nama,
+                'warna' => $kegiatan->rincianMenu->menuKegiatan->warna ?? '#6B7280',
+            ],
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'total_pegawai'  => count($list),
+            'total_tanggal'  => $records->count(),
+            'pemakai'        => $list,
+        ]);
+    }
 }

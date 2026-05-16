@@ -16,10 +16,12 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ **Input 1 klik per hari per pegawai** (bukan per slot)
 - ✅ Status kehadiran: Hadir, Izin, Sakit, Cuti Bersalin, Cuti Tahunan, Dinas Luar, Ijin Belajar, Tidak Hadir
 - ✅ Jika Hadir → pilih **Apel Pagi** dan **Apel Siang** (Apel / Tidak Apel + jam)
+- ✅ **Field jam bisa paste** dari spreadsheet (auto-format: `7:50:00 AM` → `07:50`, `1430` → `14:30`, dll)
+- ✅ Validasi format jam dengan error visual (border merah + pesan)
 - ✅ Tidak Apel (TA) disimpan dengan `keterangan = 'tidak_apel'` di slot yang bersangkutan
 - ✅ Tampilan sel: `H` (hijau) = hadir apel, `TA` (abu-abu) = tidak apel + jam
 - ✅ Scroll position dipertahankan setelah simpan/hapus (tidak kembali ke atas)
-- ✅ Kelola hari libur: tambah, hapus (dengan konfirmasi)
+- ✅ Kelola hari libur: tambah, edit, hapus dengan tabel friendly
 - ✅ Admin (super_admin) tidak muncul di daftar absensi
 
 ### 3. Hasil Absensi (Konversi)
@@ -44,13 +46,24 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ Kolom: SAKIT (HARI) | POIN SAKIT | TA PAGI | TA SIANG | TOTAL TA | POIN TA
 - ✅ Warna otomatis: hijau (0 poin) → kuning → orange → merah
 
-### 6. Perjalanan Dinas
+### 6. Kode Kegiatan BOK
+- ✅ CRUD kegiatan dengan kode + nama + warna
+- ✅ Hierarki: Menu → Rincian Menu → Kegiatan
+- ✅ **Lihat Pemakai Kode**: modal dengan filter bulan/tahun, list pegawai + tanggal yang pakai kode tersebut
+
+### 7. Perjalanan Dinas
 - ✅ Matriks perjalanan dinas per pegawai per tanggal
 - ✅ Filter pegawai (checkbox dropdown)
 - ✅ Integrasi kode kegiatan BOK
+- ✅ **Dropdown kode kegiatan**: tampil 2 baris (kode + nama lengkap) + search bidirectional
+- ✅ **Konfirmasi hapus dinas** sebelum eksekusi
+- ✅ **Blokir sel** (admin only): blokir per orang atau seluruh tanggal dengan keterangan
+- ✅ **Buka blokir**: per orang atau seluruh tanggal sekaligus
+- ✅ Sel hitam = tidak tersedia (diblokir admin)
+- ✅ Tombol shortcut "Versi Publik" → buka halaman publik di tab baru
 - ✅ Kelola lokasi posyandu per tanggal
 
-### 7. Halaman Publik Perjalanan Dinas
+### 8. Halaman Publik Perjalanan Dinas
 - ✅ Akses tanpa login: `/perjalanan-dinas-publik`
 - ✅ Summary cards: total dinas, pegawai sudah/belum dinas, tanggal terisi
 - ✅ **Tanggal tidak tersedia**: hari Minggu + hari libur nasional (dengan keterangan)
@@ -60,13 +73,13 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ Daftar pegawai belum dinas
 - ✅ Rekap lengkap per pegawai dengan badge tanggal
 
-### 8. Kalender Publik
+### 9. Kalender Publik
 - ✅ Tampilan kalender kegiatan bulanan
 - ✅ Info lokasi posyandu per tanggal
 - ✅ Informasi tanggal libur
 - ✅ Akses publik tanpa login: `/kalender`
 
-### 9. Profil Pengguna
+### 10. Profil Pengguna
 - ✅ Edit nama dan email
 - ✅ Ganti password
 - ✅ **Upload foto profil dengan crop/zoom**:
@@ -76,7 +89,7 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
   - Hapus foto profil
 - ✅ Foto disimpan di `storage/app/public/profile-photos/`
 
-### 10. Pengaturan Sistem
+### 11. Pengaturan Sistem
 - ✅ Nama instansi (tampil di sidebar, login, header)
 - ✅ **Nama sistem / subtitle login** (dapat diubah via pengaturan)
 - ✅ Alamat, telepon, email instansi
@@ -86,7 +99,7 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ Konfigurasi Telegram bot (token, chat ID)
 - ✅ Jadwal backup otomatis (3 waktu konfigurabel)
 
-### 11. Telegram Backup
+### 12. Telegram Backup
 - ✅ Backup database otomatis 3x sehari (waktu konfigurabel via pengaturan)
 - ✅ Backup manual: `php artisan backup:telegram`
 - ✅ File backup dikirim langsung ke Telegram
@@ -315,17 +328,32 @@ Diurutkan berdasarkan field `urutan` (ascending), lalu nama (A-Z):
 
 ## 🔄 Changelog
 
-### v2.0 (Mei 2026)
+### v2.1 (Mei 2026)
+- **Captcha + Rate Limiting** di halaman login (math captcha + max 5 percobaan/menit)
+- **Session lifetime** diperpanjang ke 7 hari + remember cookie 5 tahun
+- **Foto profil** tampil di sidebar dan topbar (auto sync setelah simpan)
+- **Nama sistem** dapat diubah via pengaturan
+- **Fix scroll tabel absensi**: posisi tabel dipertahankan setelah simpan/hapus (tidak kembali ke atas)
+- **Field jam input absensi**: bisa **paste dari spreadsheet** dengan auto-format (terima `7:50:00 AM`, `7:50 AM`, `0750`, `1430`, dll → otomatis jadi `HH:MM`)
+- **Rekap kehadiran**: H mencakup semua hadir termasuk TA (tidak double count)
+- **Sheet Excel apel**: tambah kolom **TA** terpisah
+- **Halaman dinas publik**: redesign warna kontras tinggi + tombol shortcut "Versi Publik" di halaman admin
+- **Blokir sel perjalanan dinas**: admin bisa blokir sel per orang/per tanggal dengan keterangan
+- **Buka blokir**: per orang atau seluruh tanggal sekaligus
+- **Lihat pemakai kode kegiatan**: modal dengan filter bulan/tahun, list pegawai + tanggal pakai kode
+- **Konfirmasi hapus dinas**: dialog `confirm()` sebelum hapus
+- **Dropdown kode kegiatan**: tampil 2 baris (kode + nama kegiatan) + search di kode/nama
+- **Kelola hari libur**: tambah/edit/hapus dengan UI tabel friendly
+- **Profile foto**: crop/zoom sebelum simpan (Cropper.js)
+- **Excel REKAP**: poin sakit + poin TA terpisah dengan warna kolom
+- **Halaman publik dinas**: tabel ketersediaan tanggal + status (Tersedia/Terisi/Libur/Minggu)
+
+### v2.0 (April 2026)
 - **Redesign alur input absensi**: 1 modal per hari (bukan per slot)
 - **Apel Pagi & Apel Siang**: pilihan Apel / Tidak Apel dengan jam
 - **Kode TA** (Tidak Apel) di tabel, hasil absensi, dan Excel export
-- **Fix scroll**: posisi tabel dipertahankan setelah simpan/hapus
-- **Profil foto**: crop/zoom sebelum simpan (Cropper.js)
-- **Nama sistem**: dapat diubah via pengaturan (tampil di halaman login)
-- **Rekap kehadiran**: total dari slot pagi saja (tidak double count)
-- **Excel REKAP**: poin sakit + poin TA terpisah
-- **Halaman dinas publik**: redesign dengan tabel ketersediaan tanggal
-- **Kelola hari libur**: tambah + hapus dengan konfirmasi
+- **Sheet REKAP** dengan sistem poin (sakit > 3 hari, TA kelipatan 7)
+- **Halaman publik perjalanan dinas**
 
 ### v1.0 (April 2026)
 - Fitur dasar: absensi, perjalanan dinas, rekap, kalender publik

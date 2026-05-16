@@ -98,7 +98,7 @@
                     </div>
 
                     {{-- Remember me --}}
-                    <div class="flex items-center mb-6">
+                    <div class="flex items-center mb-4">
                         <input
                             type="checkbox"
                             id="remember"
@@ -106,6 +106,26 @@
                             class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500/20 transition"
                         >
                         <label for="remember" class="ml-2 text-sm text-gray-600 select-none">Ingat saya</label>
+                    </div>
+
+                    {{-- Captcha --}}
+                    <div class="mb-6">
+                        <label for="captcha" class="block text-sm font-medium text-gray-700 mb-1.5">
+                            Verifikasi: Berapa hasil dari
+                            <span class="font-bold text-indigo-600">{{ session('captcha_q', '? + ?') }}</span> ?
+                        </label>
+                        <input
+                            type="number"
+                            id="captcha"
+                            name="captcha"
+                            placeholder="Masukkan jawaban"
+                            autocomplete="off"
+                            class="block w-full rounded-lg border border-gray-300 bg-gray-50 py-2.5 px-4 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:outline-none @error('captcha') border-red-400 bg-red-50 @enderror"
+                            required
+                        >
+                        @error('captcha')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     {{-- Submit --}}

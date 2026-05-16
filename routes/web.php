@@ -66,6 +66,18 @@ Route::middleware('auth')->group(function () {
         ->name('perjalanan-dinas.store');
     Route::delete('/perjalanan-dinas', [PerjalananDinasController::class, 'destroy'])
         ->name('perjalanan-dinas.destroy');
+    Route::post('/perjalanan-dinas/blokir', [PerjalananDinasController::class, 'blokir'])
+        ->middleware('role:super_admin,kepala')
+        ->name('perjalanan-dinas.blokir');
+    Route::post('/perjalanan-dinas/blokir/hapus', [PerjalananDinasController::class, 'unblokir'])
+        ->middleware('role:super_admin,kepala')
+        ->name('perjalanan-dinas.unblokir');
+    Route::post('/perjalanan-dinas/blokir/hapus-tanggal', [PerjalananDinasController::class, 'unblokirTanggal'])
+        ->middleware('role:super_admin,kepala')
+        ->name('perjalanan-dinas.unblokir-tanggal');
+    Route::delete('/perjalanan-dinas/blokir', [PerjalananDinasController::class, 'unblokir'])
+        ->middleware('role:super_admin,kepala')
+        ->name('perjalanan-dinas.unblokir-delete');
 
     // Pegawai Management
     Route::get('/pegawai', [PegawaiController::class, 'index'])
@@ -111,6 +123,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/kode-kegiatan/kegiatan', [KodeKegiatanController::class, 'storeKegiatan'])->name('kegiatan.store');
         Route::put('/kode-kegiatan/kegiatan/{id}', [KodeKegiatanController::class, 'updateKegiatan'])->name('kegiatan.update');
         Route::delete('/kode-kegiatan/kegiatan/{id}', [KodeKegiatanController::class, 'destroyKegiatan'])->name('kegiatan.destroy');
+
+        // Lihat pemakai kode (siapa saja yang pakai kode ini)
+        Route::get('/kode-kegiatan/kegiatan/{id}/pemakai', [KodeKegiatanController::class, 'pemakai'])->name('kegiatan.pemakai');
     });
 
     // Settings

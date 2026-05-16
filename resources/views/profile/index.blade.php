@@ -4,12 +4,10 @@
 
 @push('styles')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
-<style>
-    .cropper-container { max-height: 380px; }
-</style>
 @endpush
 
 @section('content')
+{{-- Seluruh halaman + modal dalam 1 x-data scope --}}
 <div class="max-w-2xl mx-auto space-y-6" x-data="profileManager()">
 
     <div>
@@ -19,13 +17,16 @@
 
     @if(session('success'))
     <div class="rounded-lg bg-green-50 border border-green-200 px-4 py-3 flex items-center gap-2">
-        <svg class="w-4 h-4 text-green-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+        <svg class="w-4 h-4 text-green-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
         <p class="text-sm text-green-700">{{ session('success') }}</p>
     </div>
     @endif
 
+    {{-- ===== FORM ===== --}}
     <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data"
-          class="bg-white rounded-xl border border-gray-200 overflow-hidden" @submit="onSubmit">
+          class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         @csrf
         @method('PUT')
 
@@ -45,36 +46,39 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-3">Foto Profil</label>
                 <div class="flex items-start gap-5">
+
                     {{-- Avatar / Preview --}}
-                    <div class="shrink-0 relative group cursor-pointer" @click="$refs.fileInput.click()">
-                        <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md ring-2 ring-gray-200">
+                    <div class="shrink-0 relative group cursor-pointer" @click="triggerFileInput()">
+                        <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md ring-2 ring-gray-200">
+                            {{-- Foto ada --}}
                             <img x-ref="avatarPreview"
                                  src="{{ $user->foto ? asset('storage/' . $user->foto) : '' }}"
                                  alt="Foto Profil"
                                  class="w-full h-full object-cover"
-                                 :class="{ 'hidden': !hasPhoto }"
-                                 x-init="hasPhoto = {{ $user->foto ? 'true' : 'false' }}">
-                            <div class="w-full h-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-3xl font-bold"
-                                 :class="{ 'hidden': hasPhoto }">
+                                 :class="hasPhoto ? 'block' : 'hidden'">
+                            {{-- Inisial (fallback) --}}
+                            <div class="w-full h-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-bold"
+                                 :class="hasPhoto ? 'hidden' : 'flex'">
                                 {{ strtoupper(substr($user->name, 0, 1)) }}
                             </div>
                         </div>
                         {{-- Overlay hover --}}
-                        <div class="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div class="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                             <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z"/>
                             </svg>
                         </div>
                         {{-- Badge "Belum disimpan" --}}
-                        <div x-show="pendingCrop" class="absolute -bottom-1 -right-1 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">
+                        <div x-show="pendingCrop"
+                             class="absolute -bottom-1 -right-1 bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">
                             Belum disimpan
                         </div>
                     </div>
 
                     {{-- Tombol aksi --}}
                     <div class="flex flex-col gap-2 pt-1">
-                        <button type="button" @click="$refs.fileInput.click()"
+                        <button type="button" @click="triggerFileInput()"
                             class="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
@@ -92,9 +96,9 @@
                     </div>
                 </div>
 
-                {{-- Input file hidden --}}
-                <input type="file" x-ref="fileInput" accept="image/jpeg,image/png,image/jpg"
-                       class="hidden" @change="onFileSelected">
+                {{-- Input file hidden — di luar avatar agar tidak trigger dua kali --}}
+                <input type="file" id="fotoFileInput" accept="image/jpeg,image/png,image/jpg"
+                       class="hidden" @change="onFileSelected($event)">
             </div>
 
             {{-- Info (read-only) --}}
@@ -155,68 +159,73 @@
             </button>
         </div>
     </form>
-</div>
 
-{{-- ===== MODAL CROP ===== --}}
-<div x-show="showCropModal" x-cloak
-     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-     @keydown.escape.window="cancelCrop()">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop>
-        {{-- Header --}}
-        <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-            <div>
-                <h3 class="font-bold text-gray-900">Sesuaikan Foto Profil</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Drag untuk menggeser · Scroll untuk zoom</p>
-            </div>
-            <button @click="cancelCrop()" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
-                </svg>
-            </button>
-        </div>
+    {{-- ===== MODAL CROP — di dalam scope x-data yang sama ===== --}}
+    <div x-show="showCropModal"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+         @keydown.escape.window="cancelCrop()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop>
 
-        {{-- Crop area --}}
-        <div class="p-4 bg-gray-900">
-            <div class="relative overflow-hidden rounded-lg" style="max-height:360px;">
-                <img x-ref="cropImage" src="" alt="Crop" class="block max-w-full">
-            </div>
-        </div>
-
-        {{-- Controls --}}
-        <div class="px-5 py-3 bg-gray-50 border-t border-gray-200">
-            <div class="flex items-center justify-between gap-3">
-                {{-- Zoom controls --}}
-                <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-500 font-medium">Zoom:</span>
-                    <button type="button" @click="zoomCrop(-0.1)"
-                        class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-50 text-gray-700 font-bold text-lg leading-none">−</button>
-                    <button type="button" @click="zoomCrop(0.1)"
-                        class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-50 text-gray-700 font-bold text-lg leading-none">+</button>
-                    <button type="button" @click="rotateCrop()"
-                        class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-50 text-gray-600" title="Putar 90°">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
-                        </svg>
-                    </button>
-                    <button type="button" @click="resetCrop()"
-                        class="text-xs text-gray-500 hover:text-gray-700 underline">Reset</button>
+            {{-- Header --}}
+            <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-gray-900">Sesuaikan Foto Profil</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Drag untuk menggeser · Scroll untuk zoom</p>
                 </div>
+                <button type="button" @click="cancelCrop()"
+                        class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
 
-                {{-- Action buttons --}}
-                <div class="flex gap-2">
-                    <button type="button" @click="cancelCrop()"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        Batal
-                    </button>
-                    <button type="button" @click="applyCrop()"
-                        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
-                        Gunakan Foto Ini
-                    </button>
+            {{-- Crop area --}}
+            <div class="p-4 bg-gray-900">
+                <div class="flex items-center justify-center" style="min-height:300px; max-height:360px; overflow:hidden;">
+                    <img id="cropImageEl" src="" alt="Crop"
+                         class="block max-w-full max-h-full">
+                </div>
+            </div>
+
+            {{-- Controls --}}
+            <div class="px-5 py-3 bg-gray-50 border-t border-gray-200">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    {{-- Zoom controls --}}
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500 font-medium">Zoom:</span>
+                        <button type="button" @click="zoomCrop(-0.1)"
+                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-50 text-gray-700 font-bold text-lg leading-none">−</button>
+                        <button type="button" @click="zoomCrop(0.1)"
+                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-50 text-gray-700 font-bold text-lg leading-none">+</button>
+                        <button type="button" @click="rotateCrop()"
+                            class="w-8 h-8 rounded-lg bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-50 text-gray-600" title="Putar 90°">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+                            </svg>
+                        </button>
+                        <button type="button" @click="resetCrop()"
+                            class="text-xs text-gray-500 hover:text-gray-700 underline">Reset</button>
+                    </div>
+
+                    {{-- Action buttons --}}
+                    <div class="flex gap-2">
+                        <button type="button" @click="cancelCrop()"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                            Batal
+                        </button>
+                        <button type="button" @click="applyCrop()"
+                            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+                            Gunakan Foto Ini
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+
+</div>{{-- end x-data --}}
 @endsection
 
 @push('scripts')
@@ -228,6 +237,11 @@ document.addEventListener('alpine:init', () => {
         showCropModal: false,
         pendingCrop: false,
         cropper: null,
+
+        // Trigger file input via DOM id (lebih reliable dari x-ref di dalam form)
+        triggerFileInput() {
+            document.getElementById('fotoFileInput').click();
+        },
 
         onFileSelected(e) {
             const file = e.target.files[0];
@@ -241,12 +255,17 @@ document.addEventListener('alpine:init', () => {
 
             const reader = new FileReader();
             reader.onload = (ev) => {
-                this.$refs.cropImage.src = ev.target.result;
+                // Set src gambar crop via DOM id
+                const img = document.getElementById('cropImageEl');
+                img.src = ev.target.result;
+
                 this.showCropModal = true;
-                this.$nextTick(() => this.initCropper());
+
+                // Tunggu modal visible + gambar ter-render sebelum init Cropper
+                setTimeout(() => this.initCropper(), 150);
             };
             reader.readAsDataURL(file);
-            // Reset input agar bisa pilih file yang sama lagi
+            // Reset agar bisa pilih file yang sama lagi
             e.target.value = '';
         },
 
@@ -255,7 +274,10 @@ document.addEventListener('alpine:init', () => {
                 this.cropper.destroy();
                 this.cropper = null;
             }
-            this.cropper = new Cropper(this.$refs.cropImage, {
+            const img = document.getElementById('cropImageEl');
+            if (!img || !img.src) return;
+
+            this.cropper = new Cropper(img, {
                 aspectRatio: 1,
                 viewMode: 1,
                 dragMode: 'move',
@@ -294,12 +316,12 @@ document.addEventListener('alpine:init', () => {
 
             const base64 = canvas.toDataURL('image/jpeg', 0.9);
 
-            // Set preview di avatar
+            // Update preview avatar
             this.$refs.avatarPreview.src = base64;
             this.hasPhoto = true;
             this.pendingCrop = true;
 
-            // Set ke hidden input
+            // Simpan ke hidden input
             this.$refs.fotoCropped.value = base64;
 
             this.cancelCrop();
@@ -311,6 +333,9 @@ document.addEventListener('alpine:init', () => {
                 this.cropper.destroy();
                 this.cropper = null;
             }
+            // Reset src gambar crop
+            const img = document.getElementById('cropImageEl');
+            if (img) img.src = '';
         },
 
         hapusFoto() {
@@ -320,11 +345,6 @@ document.addEventListener('alpine:init', () => {
             this.pendingCrop = false;
             this.$refs.fotoCropped.value = 'HAPUS';
         },
-
-        onSubmit() {
-            // Jika hapus foto, set flag khusus
-            // Controller akan handle jika foto_cropped = 'HAPUS'
-        }
     }));
 });
 </script>

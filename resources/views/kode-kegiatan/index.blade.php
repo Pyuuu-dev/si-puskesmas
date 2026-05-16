@@ -105,6 +105,9 @@
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-1 shrink-0">
+                                            <button onclick="lihatPemakai({{ $keg->id }}, '{{ addslashes($keg->kode ?? '?') }}', '{{ addslashes($keg->nama) }}', '{{ $menu->warna }}')" class="p-1 rounded text-gray-400 hover:text-emerald-600 hover:bg-emerald-50" title="Lihat Pemakai">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></svg>
+                                            </button>
                                             <button onclick="editKegiatan({{ $keg->id }}, '{{ addslashes($keg->nama) }}', '{{ addslashes($keg->kode ?? '') }}', '{{ addslashes($keg->pemegang_program ?? '') }}', {{ $keg->anggaran ?? 0 }})" class="p-1 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50" title="Edit">
                                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
                                             </button>
@@ -240,6 +243,68 @@
         </div>
     </div>
 </div>
+
+{{-- Modal Lihat Pemakai --}}
+<div id="modal-pemakai" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 py-8">
+        <div class="fixed inset-0 bg-gray-900/60" onclick="document.getElementById('modal-pemakai').classList.add('hidden')"></div>
+        <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl z-10 overflow-hidden">
+
+            {{-- Header --}}
+            <div class="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3 min-w-0 flex-1">
+                    <div id="pemakai-badge" class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0">?</div>
+                    <div class="min-w-0">
+                        <p class="text-xs text-gray-500 font-medium">Pemakai Kode</p>
+                        <h3 id="pemakai-judul" class="text-base font-bold text-gray-900 leading-tight">-</h3>
+                        <p id="pemakai-nama-keg" class="text-xs text-gray-600 leading-snug mt-0.5">-</p>
+                    </div>
+                </div>
+                <button onclick="document.getElementById('modal-pemakai').classList.add('hidden')" class="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 shrink-0">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Filter --}}
+            <div class="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-medium text-gray-600">Filter:</span>
+                <select id="pemakai-bulan" class="rounded-lg border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500 py-1.5">
+                    @foreach(range(1, 12) as $b)
+                        <option value="{{ $b }}" {{ now()->month == $b ? 'selected' : '' }}>
+                            {{ \Carbon\Carbon::createFromDate(null, $b, 1)->locale('id')->isoFormat('MMMM') }}
+                        </option>
+                    @endforeach
+                </select>
+                <select id="pemakai-tahun" class="rounded-lg border-gray-300 text-xs focus:border-indigo-500 focus:ring-indigo-500 py-1.5">
+                    @foreach(range(now()->year - 2, now()->year + 2) as $y)
+                        <option value="{{ $y }}" {{ now()->year == $y ? 'selected' : '' }}>{{ $y }}</option>
+                    @endforeach
+                </select>
+                <button onclick="reloadPemakai()" class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+                    Tampilkan
+                </button>
+                <span class="ml-auto text-xs text-gray-500">
+                    Total: <span id="pemakai-total-pegawai" class="font-bold text-gray-800">0</span> pegawai · <span id="pemakai-total-tanggal" class="font-bold text-gray-800">0</span> tanggal
+                </span>
+            </div>
+
+            {{-- Body: list pemakai --}}
+            <div class="max-h-[60vh] overflow-y-auto">
+                <div id="pemakai-loading" class="hidden p-8 text-center text-sm text-gray-500">
+                    <svg class="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                    Memuat data...
+                </div>
+                <div id="pemakai-empty" class="hidden p-8 text-center text-sm text-gray-500">
+                    <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></svg>
+                    Tidak ada pegawai yang menggunakan kode ini di bulan terpilih
+                </div>
+                <div id="pemakai-list" class="divide-y divide-gray-100"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -382,6 +447,107 @@ async function confirmDelete() {
     } else {
         window.toast(result.message || 'Gagal menghapus', 'error');
     }
+}
+
+// === LIHAT PEMAKAI KODE ===
+let _currentPemakaiId = null;
+
+function lihatPemakai(id, kode, nama, warna) {
+    _currentPemakaiId = id;
+
+    document.getElementById('pemakai-judul').textContent = 'Kode: ' + kode;
+    document.getElementById('pemakai-nama-keg').textContent = nama;
+
+    const badge = document.getElementById('pemakai-badge');
+    badge.textContent = kode;
+    badge.style.backgroundColor = warna || '#6B7280';
+
+    document.getElementById('modal-pemakai').classList.remove('hidden');
+
+    reloadPemakai();
+}
+
+async function reloadPemakai() {
+    if (!_currentPemakaiId) return;
+
+    const bulan = document.getElementById('pemakai-bulan').value;
+    const tahun = document.getElementById('pemakai-tahun').value;
+
+    const loadingEl = document.getElementById('pemakai-loading');
+    const emptyEl   = document.getElementById('pemakai-empty');
+    const listEl    = document.getElementById('pemakai-list');
+
+    listEl.innerHTML = '';
+    emptyEl.classList.add('hidden');
+    loadingEl.classList.remove('hidden');
+
+    try {
+        const res = await fetch(`/kode-kegiatan/kegiatan/${_currentPemakaiId}/pemakai?bulan=${bulan}&tahun=${tahun}`, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content }
+        });
+        const data = await res.json();
+
+        loadingEl.classList.add('hidden');
+
+        if (!data.success) {
+            window.toast(data.message || 'Gagal memuat data', 'error');
+            return;
+        }
+
+        document.getElementById('pemakai-total-pegawai').textContent = data.total_pegawai;
+        document.getElementById('pemakai-total-tanggal').textContent = data.total_tanggal;
+
+        if (data.pemakai.length === 0) {
+            emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        let html = '';
+        data.pemakai.forEach(p => {
+            const inisial = (p.nama || '?').charAt(0).toUpperCase();
+            const tanggalBadges = p.tanggal.map(t =>
+                `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-indigo-100 text-indigo-800 border border-indigo-200" title="${t.display}">
+                    ${escapeHtml(t.display)}
+                </span>`
+            ).join('');
+
+            html += `
+                <div class="px-5 py-3 hover:bg-gray-50/80">
+                    <div class="flex items-start gap-3">
+                        <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">
+                            ${inisial}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="text-sm font-semibold text-gray-900">${escapeHtml(p.nama)}</p>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">${p.jumlah}x</span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mt-0.5">${escapeHtml(p.jabatan)} · Penempatan ${escapeHtml(p.penempatan)}</p>
+                            <div class="flex flex-wrap gap-1 mt-2">
+                                ${tanggalBadges}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        listEl.innerHTML = html;
+
+    } catch (e) {
+        loadingEl.classList.add('hidden');
+        window.toast('Terjadi kesalahan saat memuat data', 'error');
+    }
+}
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 </script>
 @endsection

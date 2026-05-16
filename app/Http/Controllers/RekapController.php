@@ -279,11 +279,12 @@ class RekapController extends Controller
             ->get();
 
         // Build rekap per pegawai
+        // H = semua hadir (termasuk TA) — TA tetap hadir, hanya tidak ikut apel
         $rekap = [];
         foreach ($pegawai as $p) {
             $userAbsensi = $absensiData->where('user_id', $p->id);
             $rekap[$p->id] = [
-                'hadir'         => $userAbsensi->where('status', 'hadir')->where('keterangan', '!=', 'tidak_apel')->count(),
+                'hadir'         => $userAbsensi->where('status', 'hadir')->count(),
                 'izin'          => $userAbsensi->where('status', 'izin')->count(),
                 'sakit'         => $userAbsensi->where('status', 'sakit')->count(),
                 'cuti_bersalin' => $userAbsensi->where('status', 'cuti_bersalin')->count(),
@@ -409,9 +410,9 @@ class RekapController extends Controller
         $sheet4->setTitle('REKAP');
         $this->buildRekapPoin($sheet4, $pegawai, $absensiData, $statusColors, $namaInstansi, $namaBulan, $tahun, $colLetter);
 
-        // Generate file
+        // Generate file — gunakan storage/app agar tidak ada warning tempnam
         $filename = "REKAP_ABSENSI_{$namaBulan}_{$tahun}.xlsx";
-        $tempFile = tempnam(sys_get_temp_dir(), 'rekap') . '.xlsx';
+        $tempFile = storage_path('app/' . uniqid('rekap_') . '.xlsx');
 
         $writer = new Xlsx($spreadsheet);
         $writer->save($tempFile);
