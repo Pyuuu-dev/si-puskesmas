@@ -328,6 +328,11 @@ Diurutkan berdasarkan field `urutan` (ascending), lalu nama (A-Z):
 
 ## 🔄 Changelog
 
+### v2.2 (Mei 2026)
+- **Konversi jam TA di Excel rekap**: status TA (Tidak Apel) di sheet APEL PAGI & APEL SIANG sekarang menampilkan jam yang sudah dikonversi (sama seperti H), bukan jam raw fingerprint
+- **Input absensi fleksibel**: saat status Hadir, user tidak lagi wajib mengisi kedua jam (Apel Pagi & Apel Siang). Cukup isi salah satu, slot yang kosong tetap tersimpan dengan jam null
+- **Validasi minimal**: minimal salah satu jam apel wajib diisi saat status Hadir (guard di frontend & backend)
+
 ### v2.1 (Mei 2026)
 - **Captcha + Rate Limiting** di halaman login (math captcha + max 5 percobaan/menit)
 - **Session lifetime** diperpanjang ke 7 hari + remember cookie 5 tahun

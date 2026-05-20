@@ -577,8 +577,8 @@ class RekapController extends Controller
                             // Show status with time: H (07:12) or TA (07:12)
                             $jamDisplay = substr($jam, 0, 5);
                             
-                            // Apply konversi for ALL statuses that have time (not just hadir)
-                            if ($jk && !$isTidakApel) {
+                            // Apply konversi for ALL statuses that have time (including TA)
+                            if ($jk) {
                                 if ($slot === 'pagi') {
                                     // Apel Pagi: subtract konversi masuk
                                     $konversi = $penempatan === 'induk' ? $jk->konversi_induk_masuk : $jk->konversi_desa_masuk;

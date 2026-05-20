@@ -109,6 +109,14 @@ class AbsensiController extends Controller
         $status  = $validated['status_kehadiran'];
 
         if ($status === 'hadir') {
+            // Validasi minimal salah satu jam wajib diisi
+            if (empty($validated['jam_pagi']) && empty($validated['jam_siang'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Minimal salah satu jam apel wajib diisi.',
+                ], 422);
+            }
+
             $slots = [
                 'pagi' => [
                     'status'     => 'hadir',

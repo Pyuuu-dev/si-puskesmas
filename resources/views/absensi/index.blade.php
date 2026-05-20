@@ -455,7 +455,7 @@
                         <button @click="showModal = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
                             Batal
                         </button>
-                        <button @click="saveAbsensi()" :disabled="saving || !modalStatusKehadiran || (modalStatusKehadiran === 'hadir' && (!modalJamPagi || !modalJamSiang))" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                        <button @click="saveAbsensi()" :disabled="saving || !modalStatusKehadiran || (modalStatusKehadiran === 'hadir' && !modalJamPagi && !modalJamSiang)" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
                             <span x-text="saving ? 'Menyimpan...' : 'Simpan'"></span>
                         </button>
                     </div>
@@ -561,27 +561,31 @@ document.addEventListener('alpine:init', () => {
         async saveAbsensi() {
             if (this.saving || !this.modalStatusKehadiran) return;
 
-            // Validasi: jika hadir, jam wajib diisi
+            // Validasi: jika hadir, minimal salah satu jam wajib diisi
             if (this.modalStatusKehadiran === 'hadir') {
-                if (!this.modalJamPagi || !this.modalJamSiang) {
-                    window.toast('Jam kehadiran wajib diisi untuk kedua apel', 'error');
+                if (!this.modalJamPagi && !this.modalJamSiang) {
+                    window.toast('Minimal salah satu jam apel wajib diisi', 'error');
                     return;
                 }
-                // Final parse untuk pastikan format valid (in case user belum blur)
-                const cekPagi = this.parseJam(this.modalJamPagi);
-                const cekSiang = this.parseJam(this.modalJamSiang);
-                if (!cekPagi) {
-                    this.errorJamPagi = 'Format jam tidak valid';
-                    window.toast('Format jam Apel Pagi tidak valid', 'error');
-                    return;
+                // Final parse hanya untuk jam yang diisi
+                if (this.modalJamPagi) {
+                    const cekPagi = this.parseJam(this.modalJamPagi);
+                    if (!cekPagi) {
+                        this.errorJamPagi = 'Format jam tidak valid';
+                        window.toast('Format jam Apel Pagi tidak valid', 'error');
+                        return;
+                    }
+                    this.modalJamPagi = cekPagi;
                 }
-                if (!cekSiang) {
-                    this.errorJamSiang = 'Format jam tidak valid';
-                    window.toast('Format jam Apel Siang tidak valid', 'error');
-                    return;
+                if (this.modalJamSiang) {
+                    const cekSiang = this.parseJam(this.modalJamSiang);
+                    if (!cekSiang) {
+                        this.errorJamSiang = 'Format jam tidak valid';
+                        window.toast('Format jam Apel Siang tidak valid', 'error');
+                        return;
+                    }
+                    this.modalJamSiang = cekSiang;
                 }
-                this.modalJamPagi = cekPagi;
-                this.modalJamSiang = cekSiang;
                 if (this.errorJamPagi || this.errorJamSiang) {
                     window.toast('Format jam tidak valid, perbaiki dulu', 'error');
                     return;
