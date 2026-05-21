@@ -158,6 +158,13 @@
                                         $soreStatus = $soreData['status'] ?? '';
                                         $soreJam = $soreData['jam'] ?? '';
                                         $soreKet = $soreData['keterangan'] ?? '';
+
+                                        // Indikator surat: hanya tampil di slot 'sore' (1x per hari)
+                                        // dan hanya jika status pagi atau sore butuh dokumen.
+                                        $statusBs = $statusButuhSurat ?? [];
+                                        $butuhSurat = in_array($pagiStatus, $statusBs) || in_array($soreStatus, $statusBs);
+                                        $jumlahSurat = $suratIzinMap[$p->id . '_' . $date['tanggal']] ?? 0;
+                                        $statusUntukKategori = in_array($pagiStatus, $statusBs) ? $pagiStatus : (in_array($soreStatus, $statusBs) ? $soreStatus : null);
                                     @endphp
 
                                     @if($isLibur && !$status)
@@ -166,7 +173,7 @@
                                             <div class="w-full h-8"></div>
                                         </td>
                                     @else
-                                        <td class="px-0 py-0 text-center {{ $borderClass }} cursor-pointer hover:opacity-80 {{ $cellClass }}"
+                                        <td class="relative px-0 py-0 text-center {{ $borderClass }} cursor-pointer hover:opacity-80 {{ $cellClass }}"
                                             @click="openModal({{ $p->id }}, '{{ addslashes($p->name) }}', '{{ $date['tanggal'] }}', '{{ $pagiStatus }}', '{{ $pagiJam }}', '{{ $pagiKet }}', '{{ $soreStatus }}', '{{ $soreJam }}', '{{ $soreKet }}')"
                                             title="{{ $isTidakApel ? 'Tidak Apel - ' . $jam : ($status ? ucfirst(str_replace('_', ' ', $status)) . ($jam ? ' - ' . $jam : '') : 'Klik untuk input') }}"
                                         >
@@ -176,6 +183,27 @@
                                                     <span class="text-[8px] font-normal leading-none opacity-75">{{ $jam }}</span>
                                                 @endif
                                             </div>
+
+                                            {{-- Indikator surat (1x per hari, di slot sore) --}}
+                                            @if($slot === 'sore' && $butuhSurat)
+                                                @if($jumlahSurat > 0)
+                                                    <a href="{{ route('surat-izin.index', ['user_id' => $p->id, 'tanggal' => $date['tanggal'], 'bulan' => $bulan, 'tahun' => $tahun]) }}"
+                                                        @click.stop
+                                                        title="{{ $jumlahSurat }} surat terlampir — klik untuk lihat"
+                                                        class="absolute -top-1 -right-1 z-10 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] font-bold leading-none ring-2 ring-white shadow hover:bg-emerald-600 transition-colors">
+                                                        {{ $jumlahSurat > 9 ? '9+' : $jumlahSurat }}
+                                                    </a>
+                                                @else
+                                                    <a href="{{ route('surat-izin.index', ['user_id' => $p->id, 'tanggal' => $date['tanggal'], 'bulan' => $bulan, 'tahun' => $tahun, 'open_upload' => 1]) }}"
+                                                        @click.stop
+                                                        title="Belum ada surat — klik untuk upload"
+                                                        class="absolute -top-1 -right-1 z-10 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white ring-2 ring-white shadow hover:bg-amber-600 transition-colors">
+                                                        <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3v.008m0-9.75a9 9 0 100 18 9 9 0 000-18z" />
+                                                        </svg>
+                                                    </a>
+                                                @endif
+                                            @endif
                                         </td>
                                     @endif
                                 @endforeach
@@ -215,6 +243,30 @@
         </div>
     </div>
     @endif
+
+    {{-- Legend Indikator Surat --}}
+    <div class="bg-white border border-gray-200 rounded-lg p-3">
+        <p class="text-xs font-semibold text-gray-700 mb-2">Indikator Surat Pendukung:</p>
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-600">
+            <div class="flex items-center gap-2">
+                <span class="relative inline-block w-4 h-4">
+                    <span class="absolute inset-0 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white ring-2 ring-white shadow">
+                        <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3v.008m0-9.75a9 9 0 100 18 9 9 0 000-18z"/></svg>
+                    </span>
+                </span>
+                <span>Belum ada surat (klik untuk upload)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="relative inline-block w-4 h-4">
+                    <span class="absolute inset-0 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] font-bold leading-none ring-2 ring-white shadow">2</span>
+                </span>
+                <span>Sudah ada surat (angka = jumlah file)</span>
+            </div>
+            <div class="text-gray-500">
+                Tampil hanya pada status: izin, sakit, cuti bersalin, cuti tahunan, dinas luar, ijin belajar.
+            </div>
+        </div>
+    </div>
 
     {{-- Kelola Tanggal Libur (admin/kepala) --}}
     @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))

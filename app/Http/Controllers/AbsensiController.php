@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Absensi;
+use App\Models\SuratIzin;
 use App\Models\TanggalLibur;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AbsensiController extends Controller
 {
@@ -81,6 +83,19 @@ class AbsensiController extends Controller
 
         $namaBulan = Carbon::createFromDate($tahun, $bulan, 1)->locale('id')->isoFormat('MMMM');
 
+        // Hitung jumlah surat izin per (user_id, tanggal) untuk indikator di sel
+        $suratIzinMap = SuratIzin::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->select('user_id', 'tanggal', DB::raw('COUNT(*) as total'))
+            ->groupBy('user_id', 'tanggal')
+            ->get()
+            ->mapWithKeys(fn($r) => [
+                $r->user_id . '_' . $r->tanggal->format('Y-m-d') => (int) $r->total,
+            ])
+            ->all();
+
+        $statusButuhSurat = SuratIzin::STATUS_BUTUH_SURAT;
+
         return view('absensi.index', compact(
             'pegawai',
             'dates',
@@ -89,7 +104,9 @@ class AbsensiController extends Controller
             'tahun',
             'namaBulan',
             'daysInMonth',
-            'tanggalLibur'
+            'tanggalLibur',
+            'suratIzinMap',
+            'statusButuhSurat'
         ));
     }
 

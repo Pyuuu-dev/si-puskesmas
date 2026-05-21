@@ -8,7 +8,9 @@ use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PerjalananDinasController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RekapController;
+use App\Http\Controllers\RekapManualController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SuratIzinController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -180,4 +182,32 @@ Route::middleware('auth')->group(function () {
         ->name('rekap.absensi');
     Route::get('/rekap-absensi/download', [RekapController::class, 'exportExcel'])
         ->name('rekap.export-excel');
+
+    // Rekap Manual (upload arsip rekap absen per bulan)
+    Route::get('/rekap-manual', [RekapManualController::class, 'index'])
+        ->name('rekap-manual.index');
+    Route::get('/rekap-manual/{id}/view', [RekapManualController::class, 'view'])
+        ->name('rekap-manual.view');
+    Route::get('/rekap-manual/{id}/download', [RekapManualController::class, 'download'])
+        ->name('rekap-manual.download');
+    Route::post('/rekap-manual', [RekapManualController::class, 'store'])
+        ->middleware('role:super_admin,kepala')
+        ->name('rekap-manual.store');
+    Route::delete('/rekap-manual/{id}', [RekapManualController::class, 'destroy'])
+        ->middleware('role:super_admin,kepala')
+        ->name('rekap-manual.destroy');
+
+    // Surat Izin & Sakit (dokumen pendukung absensi)
+    Route::get('/surat-izin', [SuratIzinController::class, 'index'])
+        ->name('surat-izin.index');
+    Route::get('/surat-izin/{id}/view', [SuratIzinController::class, 'view'])
+        ->name('surat-izin.view');
+    Route::get('/surat-izin/{id}/download', [SuratIzinController::class, 'download'])
+        ->name('surat-izin.download');
+    Route::post('/surat-izin', [SuratIzinController::class, 'store'])
+        ->middleware('role:super_admin,kepala')
+        ->name('surat-izin.store');
+    Route::delete('/surat-izin/{id}', [SuratIzinController::class, 'destroy'])
+        ->middleware('role:super_admin,kepala')
+        ->name('surat-izin.destroy');
 });
