@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AbsensiController;
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KodeKegiatanController;
@@ -210,4 +211,15 @@ Route::middleware('auth')->group(function () {
     Route::delete('/surat-izin/{id}', [SuratIzinController::class, 'destroy'])
         ->middleware('role:super_admin,kepala')
         ->name('surat-izin.destroy');
+
+    // Log Aktivitas (super_admin only)
+    Route::get('/log-aktivitas', [ActivityLogController::class, 'index'])
+        ->middleware('role:super_admin')
+        ->name('log-aktivitas.index');
+    Route::get('/log-aktivitas/{id}', [ActivityLogController::class, 'show'])
+        ->middleware('role:super_admin')
+        ->name('log-aktivitas.show');
+    Route::post('/log-aktivitas/prune', [ActivityLogController::class, 'prune'])
+        ->middleware('role:super_admin')
+        ->name('log-aktivitas.prune');
 });

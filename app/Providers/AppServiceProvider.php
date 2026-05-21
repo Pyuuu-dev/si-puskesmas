@@ -16,6 +16,9 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Bootstrap any application services.
+     *
+     * Listener App\Listeners\LogAuthenticationActivity ter-register otomatis
+     * via Laravel 11 event auto-discovery (typehint pada method handle*).
      */
     public function boot(): void
     {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Kegiatan;
 use App\Models\MenuKegiatan;
 use App\Models\RincianMenu;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 
 class KodeKegiatanController extends Controller
@@ -29,6 +30,14 @@ class KodeKegiatanController extends Controller
 
         $menu = MenuKegiatan::create($validated);
 
+        ActivityLogger::log(
+            event: 'create',
+            module: 'kode_kegiatan',
+            description: "Menambah menu kegiatan: {$menu->nama}",
+            subject: $menu,
+            properties: ['data' => $validated],
+        );
+
         return response()->json(['success' => true, 'message' => 'Menu berhasil ditambahkan.', 'data' => $menu]);
     }
 
@@ -39,14 +48,33 @@ class KodeKegiatanController extends Controller
             'nama' => 'required|string|max:255',
             'warna' => 'required|string|max:7',
         ]);
+        $before = $menu->replicate()->setRawAttributes($menu->getOriginal());
         $menu->update($validated);
+
+        ActivityLogger::log(
+            event: 'update',
+            module: 'kode_kegiatan',
+            description: "Mengubah menu kegiatan: {$menu->nama}",
+            subject: $menu,
+            properties: ['changes' => ActivityLogger::diff($before, $menu)],
+        );
 
         return response()->json(['success' => true, 'message' => 'Menu berhasil diperbarui.', 'data' => $menu]);
     }
 
     public function destroyMenu($id)
     {
-        MenuKegiatan::findOrFail($id)->delete();
+        $menu = MenuKegiatan::findOrFail($id);
+        $snapshot = ['id' => $menu->id, 'nama' => $menu->nama];
+        $menu->delete();
+
+        ActivityLogger::log(
+            event: 'delete',
+            module: 'kode_kegiatan',
+            description: "Menghapus menu kegiatan: {$snapshot['nama']}",
+            properties: ['data' => $snapshot],
+        );
+
         return response()->json(['success' => true, 'message' => 'Menu berhasil dihapus.']);
     }
 
@@ -60,6 +88,14 @@ class KodeKegiatanController extends Controller
 
         $rincian = RincianMenu::create($validated);
 
+        ActivityLogger::log(
+            event: 'create',
+            module: 'kode_kegiatan',
+            description: "Menambah rincian menu: {$rincian->nama}",
+            subject: $rincian,
+            properties: ['data' => $validated],
+        );
+
         return response()->json(['success' => true, 'message' => 'Rincian menu berhasil ditambahkan.', 'data' => $rincian]);
     }
 
@@ -69,14 +105,33 @@ class KodeKegiatanController extends Controller
         $validated = $request->validate([
             'nama' => 'required|string|max:255',
         ]);
+        $before = $rincian->replicate()->setRawAttributes($rincian->getOriginal());
         $rincian->update($validated);
+
+        ActivityLogger::log(
+            event: 'update',
+            module: 'kode_kegiatan',
+            description: "Mengubah rincian menu: {$rincian->nama}",
+            subject: $rincian,
+            properties: ['changes' => ActivityLogger::diff($before, $rincian)],
+        );
 
         return response()->json(['success' => true, 'message' => 'Rincian menu berhasil diperbarui.', 'data' => $rincian]);
     }
 
     public function destroyRincian($id)
     {
-        RincianMenu::findOrFail($id)->delete();
+        $rincian = RincianMenu::findOrFail($id);
+        $snapshot = ['id' => $rincian->id, 'nama' => $rincian->nama];
+        $rincian->delete();
+
+        ActivityLogger::log(
+            event: 'delete',
+            module: 'kode_kegiatan',
+            description: "Menghapus rincian menu: {$snapshot['nama']}",
+            properties: ['data' => $snapshot],
+        );
+
         return response()->json(['success' => true, 'message' => 'Rincian menu berhasil dihapus.']);
     }
 
@@ -93,6 +148,14 @@ class KodeKegiatanController extends Controller
 
         $kegiatan = Kegiatan::create($validated);
 
+        ActivityLogger::log(
+            event: 'create',
+            module: 'kode_kegiatan',
+            description: "Menambah kegiatan: " . ($kegiatan->kode ? "[{$kegiatan->kode}] " : "") . $kegiatan->nama,
+            subject: $kegiatan,
+            properties: ['data' => $validated],
+        );
+
         return response()->json(['success' => true, 'message' => 'Kegiatan berhasil ditambahkan.', 'data' => $kegiatan]);
     }
 
@@ -105,14 +168,33 @@ class KodeKegiatanController extends Controller
             'pemegang_program' => 'nullable|string|max:255',
             'anggaran' => 'nullable|numeric|min:0',
         ]);
+        $before = $kegiatan->replicate()->setRawAttributes($kegiatan->getOriginal());
         $kegiatan->update($validated);
+
+        ActivityLogger::log(
+            event: 'update',
+            module: 'kode_kegiatan',
+            description: "Mengubah kegiatan: " . ($kegiatan->kode ? "[{$kegiatan->kode}] " : "") . $kegiatan->nama,
+            subject: $kegiatan,
+            properties: ['changes' => ActivityLogger::diff($before, $kegiatan)],
+        );
 
         return response()->json(['success' => true, 'message' => 'Kegiatan berhasil diperbarui.', 'data' => $kegiatan]);
     }
 
     public function destroyKegiatan($id)
     {
-        Kegiatan::findOrFail($id)->delete();
+        $kegiatan = Kegiatan::findOrFail($id);
+        $snapshot = ['id' => $kegiatan->id, 'kode' => $kegiatan->kode, 'nama' => $kegiatan->nama];
+        $kegiatan->delete();
+
+        ActivityLogger::log(
+            event: 'delete',
+            module: 'kode_kegiatan',
+            description: "Menghapus kegiatan: " . ($snapshot['kode'] ? "[{$snapshot['kode']}] " : "") . $snapshot['nama'],
+            properties: ['data' => $snapshot],
+        );
+
         return response()->json(['success' => true, 'message' => 'Kegiatan berhasil dihapus.']);
     }
 

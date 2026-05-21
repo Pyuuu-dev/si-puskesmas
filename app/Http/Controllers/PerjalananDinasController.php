@@ -12,6 +12,7 @@ use App\Models\PerjalananDinas;
 use App\Models\RincianMenu;
 use App\Models\TanggalLibur;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -219,12 +220,32 @@ class PerjalananDinasController extends Controller
 
         if ($record) {
             $record->update($data);
+            $eventType = 'update';
         } else {
             $record = PerjalananDinas::create(array_merge($data, [
                 'user_id' => $validated['user_id'],
                 'tanggal' => $tanggal,
             ]));
+            $eventType = 'create';
         }
+
+        $userTarget = User::find($validated['user_id']);
+        $namaUser = $userTarget?->name ?? "User#{$validated['user_id']}";
+        $kodeKegiatan = $kegiatan->kode ?? substr($kegiatan->nama, 0, 5);
+
+        ActivityLogger::log(
+            event: $eventType,
+            module: 'perjalanan_dinas',
+            description: ($eventType === 'create' ? "Menambah" : "Mengubah") . " perjalanan dinas {$namaUser} pada {$tanggal} ({$kodeKegiatan})",
+            subject: $record,
+            properties: [
+                'user_id'     => $validated['user_id'],
+                'tanggal'     => $tanggal,
+                'kegiatan_id' => $kegiatan->id,
+                'kode'        => $kegiatan->kode,
+                'keterangan'  => $validated['keterangan'] ?? null,
+            ],
+        );
 
         return response()->json([
             'success' => true,
@@ -249,6 +270,20 @@ class PerjalananDinasController extends Controller
         $deleted = PerjalananDinas::where('user_id', $validated['user_id'])
             ->whereDate('tanggal', $tanggal)
             ->delete();
+
+        if ($deleted > 0) {
+            $userTarget = User::find($validated['user_id']);
+            $namaUser = $userTarget?->name ?? "User#{$validated['user_id']}";
+            ActivityLogger::log(
+                event: 'delete',
+                module: 'perjalanan_dinas',
+                description: "Menghapus perjalanan dinas {$namaUser} pada {$tanggal}",
+                properties: [
+                    'user_id' => $validated['user_id'],
+                    'tanggal' => $tanggal,
+                ],
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -277,6 +312,18 @@ class PerjalananDinasController extends Controller
             ]
         );
 
+        $target = $validated['user_id'] ? "user " . (User::find($validated['user_id'])?->name ?? "#{$validated['user_id']}") : "seluruh tanggal";
+        ActivityLogger::log(
+            event: 'create',
+            module: 'perjalanan_dinas',
+            description: "Memblokir sel dinas pada {$tanggal} ({$target})",
+            properties: [
+                'user_id'    => $validated['user_id'] ?? null,
+                'tanggal'    => $tanggal,
+                'keterangan' => $validated['keterangan'] ?? null,
+            ],
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Sel berhasil diblokir.',
@@ -302,6 +349,17 @@ class PerjalananDinasController extends Controller
             })
             ->delete();
 
+        $target = !empty($validated['user_id']) ? "user " . (User::find($validated['user_id'])?->name ?? "#{$validated['user_id']}") : "seluruh tanggal";
+        ActivityLogger::log(
+            event: 'delete',
+            module: 'perjalanan_dinas',
+            description: "Membuka blokir sel dinas pada {$tanggal} ({$target})",
+            properties: [
+                'user_id' => $validated['user_id'] ?? null,
+                'tanggal' => $tanggal,
+            ],
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Blokir berhasil dibuka.',
@@ -318,6 +376,15 @@ class PerjalananDinasController extends Controller
 
         // Hapus semua blokir di tanggal ini (per orang maupun seluruh tanggal)
         $deleted = DinasBlokir::whereDate('tanggal', $tanggal)->delete();
+
+        if ($deleted > 0) {
+            ActivityLogger::log(
+                event: 'delete',
+                module: 'perjalanan_dinas',
+                description: "Membuka semua blokir sel dinas pada {$tanggal} ({$deleted} data)",
+                properties: ['tanggal' => $tanggal, 'deleted' => $deleted],
+            );
+        }
 
         return response()->json([
             'success' => true,

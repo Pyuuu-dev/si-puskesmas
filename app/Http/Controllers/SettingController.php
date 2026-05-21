@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\JamKerja;
 use App\Models\Setting;
+use App\Services\ActivityLogger;
 use App\Services\TelegramBackupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -64,6 +65,13 @@ class SettingController extends Controller
             Setting::set($key, $value);
         }
 
+        ActivityLogger::log(
+            event: 'update',
+            module: 'settings',
+            description: "Memperbarui pengaturan sistem",
+            properties: ['fields' => array_keys($settingsToSave)],
+        );
+
         return redirect()->route('settings')->with('success', 'Pengaturan berhasil disimpan.');
     }
 
@@ -86,6 +94,13 @@ class SettingController extends Controller
                 $data
             );
         }
+
+        ActivityLogger::log(
+            event: 'update',
+            module: 'settings',
+            description: "Memperbarui jam kerja (" . count($validated['jam_kerja']) . " hari)",
+            properties: ['jam_kerja' => $validated['jam_kerja']],
+        );
 
         return response()->json(['success' => true, 'message' => 'Jam kerja berhasil diperbarui.']);
     }
@@ -112,6 +127,13 @@ class SettingController extends Controller
             ]);
 
             if ($response->successful() && $response->json('ok')) {
+                ActivityLogger::log(
+                    event: 'update',
+                    module: 'settings',
+                    description: "Tes koneksi Telegram berhasil",
+                    properties: ['chat_id' => $chatId],
+                );
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Koneksi berhasil! Pesan test telah dikirim ke Telegram.'
@@ -135,7 +157,6 @@ class SettingController extends Controller
     {
         $botToken = Setting::get('telegram_bot_token');
         $chatId = Setting::get('telegram_chat_id');
-
         if (!$botToken || !$chatId) {
             return response()->json([
                 'success' => false,
@@ -179,6 +200,13 @@ class SettingController extends Controller
             }
 
             if ($response->successful() && $response->json('ok')) {
+                ActivityLogger::log(
+                    event: 'create',
+                    module: 'settings',
+                    description: "Backup database manual ke Telegram",
+                    properties: ['file' => 'backup_' . $timestamp . '.sqlite'],
+                );
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Backup database berhasil dikirim ke Telegram!'

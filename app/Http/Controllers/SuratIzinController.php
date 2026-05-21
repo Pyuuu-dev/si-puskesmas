@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Absensi;
 use App\Models\SuratIzin;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -213,6 +214,21 @@ class SuratIzinController extends Controller
             return back()->with('error', 'Tidak ada file yang berhasil diupload.');
         }
 
+        $userTarget = User::find($userId);
+        $namaUser = $userTarget?->name ?? "User#{$userId}";
+        ActivityLogger::log(
+            event: 'create',
+            module: 'surat_izin',
+            description: "Upload {$jumlahTersimpan} surat {$kategori} untuk {$namaUser} pada {$tanggal}",
+            properties: [
+                'user_id'  => $userId,
+                'tanggal'  => $tanggal,
+                'kategori' => $kategori,
+                'jumlah'   => $jumlahTersimpan,
+                'judul'    => $validated['judul'] ?? null,
+            ],
+        );
+
         return redirect()->route('surat-izin.index', [
             'bulan' => $tanggalCarbon->month,
             'tahun' => $tanggalCarbon->year,
@@ -266,7 +282,21 @@ class SuratIzinController extends Controller
 
         $tanggal = $item->tanggal->format('d/m/Y');
         $nama = $item->user->name ?? '-';
+        $snapshot = [
+            'id' => $item->id,
+            'user_id' => $item->user_id,
+            'tanggal' => $item->tanggal->format('Y-m-d'),
+            'kategori' => $item->kategori,
+            'nama_file' => $item->nama_file_asli,
+        ];
         $item->delete();
+
+        ActivityLogger::log(
+            event: 'delete',
+            module: 'surat_izin',
+            description: "Menghapus surat {$snapshot['kategori']} {$nama} tanggal {$tanggal}",
+            properties: $snapshot,
+        );
 
         return redirect()->back()
             ->with('success', "Surat untuk {$nama} tanggal {$tanggal} berhasil dihapus.");

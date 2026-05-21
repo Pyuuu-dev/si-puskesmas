@@ -38,6 +38,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->dailyAt($jam3)
                 ->timezone('Asia/Makassar');
         }
+
+        // Bersihkan log aktivitas yang sudah lama (retention default 180 hari)
+        $schedule->command('activity-log:prune')
+            ->dailyAt('02:00')
+            ->timezone('Asia/Makassar');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

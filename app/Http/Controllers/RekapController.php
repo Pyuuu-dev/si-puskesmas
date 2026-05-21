@@ -8,6 +8,7 @@ use App\Models\RekapConfig;
 use App\Models\Setting;
 use App\Models\TanggalLibur;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -47,6 +48,13 @@ class RekapController extends Controller
                 'label' => $data['label'],
             ]);
         }
+
+        ActivityLogger::log(
+            event: 'update',
+            module: 'rekap',
+            description: "Memperbarui konfigurasi rekap TL/PSW (" . count($validated['configs']) . " entri)",
+            properties: ['configs' => $validated['configs']],
+        );
 
         return response()->json(['success' => true, 'message' => 'Konfigurasi TL/PSW berhasil diperbarui.']);
     }

@@ -6,6 +6,7 @@ use App\Models\Absensi;
 use App\Models\SuratIzin;
 use App\Models\TanggalLibur;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -172,6 +173,21 @@ class AbsensiController extends Controller
             $saved[$slot] = $absensi;
         }
 
+        $userTarget = User::find($validated['user_id']);
+        $namaUser = $userTarget?->name ?? "User#{$validated['user_id']}";
+        ActivityLogger::log(
+            event: 'update',
+            module: 'absensi',
+            description: "Mencatat absensi {$namaUser} pada {$tanggal} (status: {$status})",
+            properties: [
+                'user_id' => $validated['user_id'],
+                'tanggal' => $tanggal,
+                'status'  => $status,
+                'jam_pagi'  => $validated['jam_pagi']  ?? null,
+                'jam_siang' => $validated['jam_siang'] ?? null,
+            ],
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Absensi berhasil disimpan.',
@@ -191,6 +207,20 @@ class AbsensiController extends Controller
         $deleted = Absensi::where('user_id', $validated['user_id'])
             ->whereDate('tanggal', $tanggal)
             ->delete();
+
+        if ($deleted > 0) {
+            $userTarget = User::find($validated['user_id']);
+            $namaUser = $userTarget?->name ?? "User#{$validated['user_id']}";
+            ActivityLogger::log(
+                event: 'delete',
+                module: 'absensi',
+                description: "Menghapus absensi {$namaUser} pada {$tanggal}",
+                properties: [
+                    'user_id' => $validated['user_id'],
+                    'tanggal' => $tanggal,
+                ],
+            );
+        }
 
         return response()->json([
             'success' => true,

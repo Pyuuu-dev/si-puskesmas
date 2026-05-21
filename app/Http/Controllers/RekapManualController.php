@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\RekapManual;
+use App\Services\ActivityLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -97,10 +98,27 @@ class RekapManualController extends Controller
         if ($existing) {
             $existing->update($data);
             $msg = 'Rekap absen ' . $this->namaBulan($bulan) . ' ' . $tahun . ' berhasil diperbarui.';
+            $eventType = 'update';
+            $subject = $existing;
         } else {
-            RekapManual::create($data);
+            $subject = RekapManual::create($data);
             $msg = 'Rekap absen ' . $this->namaBulan($bulan) . ' ' . $tahun . ' berhasil diupload.';
+            $eventType = 'create';
         }
+
+        ActivityLogger::log(
+            event: $eventType,
+            module: 'rekap_manual',
+            description: ($eventType === 'create' ? "Upload" : "Memperbarui") . " rekap absen {$this->namaBulan($bulan)} {$tahun}",
+            subject: $subject,
+            properties: [
+                'bulan'      => $bulan,
+                'tahun'      => $tahun,
+                'nama_file'  => $namaAsli,
+                'ukuran'     => $ukuran,
+                'extension'  => $extension,
+            ],
+        );
 
         return redirect()->route('rekap-manual.index')->with('success', $msg);
     }
@@ -150,7 +168,20 @@ class RekapManualController extends Controller
         }
 
         $label = $this->namaBulan($item->bulan) . ' ' . $item->tahun;
+        $snapshot = [
+            'id'    => $item->id,
+            'bulan' => $item->bulan,
+            'tahun' => $item->tahun,
+            'nama_file' => $item->nama_file_asli,
+        ];
         $item->delete();
+
+        ActivityLogger::log(
+            event: 'delete',
+            module: 'rekap_manual',
+            description: "Menghapus rekap absen {$label}",
+            properties: $snapshot,
+        );
 
         return redirect()->route('rekap-manual.index')
             ->with('success', "Rekap absen {$label} berhasil dihapus.");

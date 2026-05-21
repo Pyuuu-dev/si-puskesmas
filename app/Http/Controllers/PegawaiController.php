@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -55,6 +56,14 @@ class PegawaiController extends Controller
 
         $user = User::create($validated);
 
+        ActivityLogger::log(
+            event: 'create',
+            module: 'pegawai',
+            description: "Menambah pegawai: {$user->name} ({$user->email})",
+            subject: $user,
+            properties: ['data' => $validated],
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Pegawai berhasil ditambahkan.',
@@ -87,7 +96,18 @@ class PegawaiController extends Controller
             unset($validated['password']);
         }
 
+        $before = $user->replicate()->setRawAttributes($user->getOriginal());
         $user->update($validated);
+
+        ActivityLogger::log(
+            event: 'update',
+            module: 'pegawai',
+            description: "Mengubah data pegawai: {$user->name} ({$user->email})",
+            subject: $user,
+            properties: [
+                'changes' => ActivityLogger::diff($before, $user),
+            ],
+        );
 
         return response()->json([
             'success' => true,
@@ -107,7 +127,21 @@ class PegawaiController extends Controller
             ], 422);
         }
 
+        $snapshot = [
+            'id'    => $user->id,
+            'name'  => $user->name,
+            'email' => $user->email,
+            'role'  => $user->role,
+        ];
+
         $user->delete();
+
+        ActivityLogger::log(
+            event: 'delete',
+            module: 'pegawai',
+            description: "Menghapus pegawai: {$snapshot['name']} ({$snapshot['email']})",
+            properties: ['data' => $snapshot],
+        );
 
         return response()->json([
             'success' => true,
@@ -126,6 +160,13 @@ class PegawaiController extends Controller
         foreach ($validated['order'] as $item) {
             User::where('id', $item['id'])->update(['urutan' => $item['urutan']]);
         }
+
+        ActivityLogger::log(
+            event: 'update',
+            module: 'pegawai',
+            description: "Mengubah urutan pegawai (" . count($validated['order']) . " pegawai)",
+            properties: ['order' => $validated['order']],
+        );
 
         return response()->json([
             'success' => true,
@@ -245,6 +286,16 @@ class PegawaiController extends Controller
                 $errors[] = "Baris " . ($i + 2) . ": " . $e->getMessage();
             }
         }
+
+        ActivityLogger::log(
+            event: 'import',
+            module: 'pegawai',
+            description: "Import pegawai: {$imported} berhasil" . (count($errors) > 0 ? ", " . count($errors) . " gagal" : ""),
+            properties: [
+                'imported' => $imported,
+                'errors'   => $errors,
+            ],
+        );
 
         return response()->json([
             'success' => true,
