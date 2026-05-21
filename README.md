@@ -105,6 +105,28 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ File backup dikirim langsung ke Telegram
 - ✅ Cleanup otomatis setelah backup terkirim
 
+### 13. Surat Izin
+- ✅ Manajemen surat izin pegawai (sakit, izin, cuti, dll)
+- ✅ Upload file surat (PDF/gambar) dengan preview
+- ✅ Indikator surat di tabel absensi: ikon dokumen pada tanggal yang punya surat
+- ✅ Filter pegawai, status, rentang tanggal
+- ✅ Edit & hapus dengan validasi role
+
+### 14. Rekap Manual
+- ✅ Input rekap manual ketidakhadiran per pegawai per bulan
+- ✅ Kolom: izin, sakit, cuti, dinas luar, ijin belajar, tanpa keterangan
+- ✅ Sistem **poin ketidakhadiran** dengan kalkulasi otomatis
+- ✅ Filter bulan/tahun, edit inline, simpan batch
+
+### 15. Log Aktivitas (Audit Trail)
+- ✅ Pencatatan otomatis aktivitas user ke tabel `activity_logs`
+- ✅ **Auth events**: login, logout, login gagal, lockout (via Laravel event listener)
+- ✅ **CRUD events** di seluruh modul: pegawai, kode kegiatan, settings, absensi, perjalanan dinas, tanggal libur, rekap manual, surat izin, rekap
+- ✅ Halaman `/log-aktivitas` (super_admin only) dengan filter tanggal, user, modul, event, keyword
+- ✅ Modal detail JSON untuk inspeksi payload
+- ✅ Tombol manual bersihkan log lama dengan threshold konfigurabel
+- ✅ Command `activity-log:prune` dijadwalkan harian jam 02:00 (retention default 180 hari)
+
 ---
 
 ## 🛠️ Tech Stack
@@ -220,6 +242,10 @@ Akses di `http://localhost:8000`
 | `kegiatan` | Kegiatan dengan kode dan anggaran |
 | `settings` | Key-value konfigurasi sistem |
 | `rekap_config` | Konfigurasi TL/PSW (hidden, belum dirilis) |
+| `dinas_blokir` | Sel dinas yang diblokir admin (per orang/per tanggal) |
+| `surat_izin` | Surat izin pegawai dengan file lampiran |
+| `rekap_manual` | Rekap manual ketidakhadiran per pegawai per bulan |
+| `activity_logs` | Log aktivitas user (audit trail) |
 
 ### Struktur Absensi
 
@@ -260,6 +286,9 @@ absensi
 ```bash
 # Backup database ke Telegram
 php artisan backup:telegram
+
+# Bersihkan log aktivitas lama (retention default 180 hari)
+php artisan activity-log:prune
 
 # Lihat scheduled tasks
 php artisan schedule:list
@@ -327,6 +356,15 @@ Diurutkan berdasarkan field `urutan` (ascending), lalu nama (A-Z):
 ---
 
 ## 🔄 Changelog
+
+### v2.3 (Mei 2026)
+- **Modul Surat Izin**: kelola surat izin pegawai (sakit, izin, cuti) dengan upload file (PDF/gambar) + preview, filter pegawai/status/tanggal
+- **Indikator surat di tabel absensi**: ikon dokumen pada tanggal yang punya surat izin
+- **Modul Rekap Manual**: input rekap ketidakhadiran per pegawai per bulan dengan sistem poin otomatis
+- **Log Aktivitas (Audit Trail)**: pencatatan otomatis aktivitas user (auth + CRUD seluruh modul) ke tabel `activity_logs`
+  - Halaman `/log-aktivitas` (super_admin only) dengan filter tanggal, user, modul, event, keyword + modal detail JSON
+  - Command `activity-log:prune` dijadwalkan harian jam 02:00 (retention konfigurabel via setting `activity_log_retention_days`)
+  - Listener `LogAuthenticationActivity` untuk login, logout, failed login, lockout
 
 ### v2.2 (Mei 2026)
 - **Konversi jam TA di Excel rekap**: status TA (Tidak Apel) di sheet APEL PAGI & APEL SIANG sekarang menampilkan jam yang sudah dikonversi (sama seperti H), bukan jam raw fingerprint
