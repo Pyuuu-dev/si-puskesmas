@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Absensi;
+use App\Models\DinasBlokir;
 use App\Models\InfoTanggal;
 use App\Models\Kegiatan;
 use App\Models\MenuKegiatan;
@@ -170,98 +171,145 @@ class PublicCalendarController extends Controller
             ->orderBy('tanggal')
             ->get();
 
-        // Group dinas by date
-        $dinasByDate = $dinasData->groupBy(fn($d) => $d->tanggal->format('Y-m-d'));
+        // ===== MATRIX DATA (read-only) =====
+        // Build matrix[user_id][tanggal] = {kode, warna, kegiatan_nama, spj_checked}
+        $matrix = [];
+        foreach ($dinasData as $r) {
+            if ($r->kegiatan_id && $r->kegiatan) {
+                $warna = $r->kegiatan->rincianMenu->menuKegiatan->warna ?? '#6B7280';
+                $matrix[$r->user_id][$r->tanggal->format('Y-m-d')] = [
+                    'kode' => $r->kegiatan->kode ?? substr($r->kegiatan->nama, 0, 5),
+                    'warna' => $warna,
+                    'kegiatan_nama' => $r->kegiatan->nama,
+                    'spj_checked' => (bool) $r->spj_checked,
+                ];
+            }
+        }
 
-        // Build per-date availability info
-        $dateInfo = [];
+        // Absensi matrix (slot pagi, status non-hadir)
+        $absensiData = Absensi::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->where('slot', 'pagi')
+            ->whereIn('status', ['izin', 'sakit', 'cuti', 'dinas_luar', 'ijin_belajar', 'cuti_bersalin', 'cuti_tahunan', 'alfa'])
+            ->get();
+        $absensiMatrix = [];
+        foreach ($absensiData as $a) {
+            $key = $a->tanggal->format('Y-m-d');
+            if (!isset($absensiMatrix[$a->user_id][$key])) {
+                $absensiMatrix[$a->user_id][$key] = $a->status;
+            }
+        }
+
+        // Blokir matrix
+        $blokirRecords = DinasBlokir::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)->get();
+        $blokirMatrix = [];
+        foreach ($blokirRecords as $b) {
+            $key = $b->tanggal->format('Y-m-d');
+            if ($b->user_id === null) {
+                $blokirMatrix['all'][$key] = $b->keterangan ?? 'Diblokir';
+            } else {
+                $blokirMatrix[$b->user_id][$key] = $b->keterangan ?? 'Diblokir';
+            }
+        }
+
+        // Kepala absen
+        $kepala = User::where('role', 'kepala')->orderBy('id')->first();
+        $kepalaAbsen = [];
+        $kepalaInfo = null;
+        if ($kepala) {
+            $kepalaInfo = ['id' => $kepala->id, 'name' => $kepala->name];
+            $statusLabel = [
+                'izin' => 'Izin',
+                'sakit' => 'Sakit',
+                'cuti' => 'Cuti',
+                'cuti_bersalin' => 'Cuti Bersalin',
+                'cuti_tahunan' => 'Cuti Tahunan',
+                'dinas_luar' => 'Dinas Luar',
+                'ijin_belajar' => 'Ijin Belajar',
+                'alfa' => 'Tidak Hadir',
+            ];
+            $kAbsensi = Absensi::where('user_id', $kepala->id)
+                ->whereMonth('tanggal', $bulan)
+                ->whereYear('tanggal', $tahun)
+                ->where('slot', 'pagi')
+                ->whereIn('status', array_keys($statusLabel))
+                ->orderBy('tanggal')
+                ->get();
+            foreach ($kAbsensi as $a) {
+                $key = $a->tanggal->format('Y-m-d');
+                $kepalaAbsen[$key] = [
+                    'status' => $a->status,
+                    'label' => $statusLabel[$a->status] ?? ucfirst(str_replace('_', ' ', $a->status)),
+                    'keterangan' => $a->keterangan,
+                ];
+            }
+        }
+
+        // Info tanggal (lokasi posyandu)
+        $infoTanggalMap = InfoTanggal::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)->get()
+            ->groupBy(fn($i) => $i->tanggal->format('Y-m-d'))
+            ->map(fn($g) => $g->pluck('lokasi')->filter()->implode(', '));
+
+        // Build dates array (mengganti $dateInfo yang sudah dihapus)
+        $dates = [];
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $date    = Carbon::createFromDate($tahun, $bulan, $d);
             $dateStr = $date->format('Y-m-d');
-
             $isMinggu = $date->isSunday();
             $isLibur  = $isMinggu;
-            $keterangan = $isMinggu ? 'Hari Minggu' : null;
-
             if (isset($tanggalLibur[$dateStr])) {
-                $isLibur    = $tanggalLibur[$dateStr]->is_libur;
-                $keterangan = $tanggalLibur[$dateStr]->keterangan ?? ($isMinggu ? 'Hari Minggu' : null);
+                $isLibur = $tanggalLibur[$dateStr]->is_libur;
             }
-
-            // Pegawai yang sudah dinas hari ini
-            $pegawaiHariIni = [];
-            if (isset($dinasByDate[$dateStr])) {
-                foreach ($dinasByDate[$dateStr] as $dinas) {
-                    $pegawaiHariIni[] = [
-                        'id'       => $dinas->user_id,
-                        'nama'     => $dinas->user->name ?? '-',
-                        'kegiatan' => $dinas->kegiatan->nama ?? '-',
-                        'kode'     => $dinas->kegiatan->kode ?? '-',
-                    ];
-                }
-            }
-
-            // Status
-            if ($isLibur) {
-                $status = 'libur';
-            } elseif (count($pegawaiHariIni) > 0) {
-                $status = 'terisi';
-            } else {
-                $status = 'tersedia';
-            }
-
-            $dateInfo[$dateStr] = [
-                'tanggal'     => $dateStr,
-                'hari'        => $d,
-                'nama_hari'   => $namaHariMap[$date->dayOfWeek],
-                'is_libur'    => $isLibur,
-                'is_minggu'   => $isMinggu,
-                'keterangan'  => $keterangan,
-                'status'      => $status,
-                'pegawai'     => $pegawaiHariIni,
+            $dates[] = [
+                'tanggal' => $dateStr,
+                'hari' => $d,
+                'nama_hari' => $namaHariMap[$date->dayOfWeek],
+                'is_weekend' => $isLibur,
+                'lokasi' => $infoTanggalMap[$dateStr] ?? null,
             ];
         }
 
-        // Tanggal tidak tersedia (libur + minggu)
-        $tanggalTidakTersedia = collect($dateInfo)->filter(fn($d) => $d['is_libur']);
-
-        // Tanggal sudah terisi dinas
-        $tanggalTerisi = collect($dateInfo)->filter(fn($d) => $d['status'] === 'terisi');
-
-        // Tanggal tersedia
-        $tanggalTersedia = collect($dateInfo)->filter(fn($d) => $d['status'] === 'tersedia');
-
-        // Rekap per pegawai: tanggal-tanggal mereka dinas
-        $rekapPegawai = [];
+        // Build tanggalKosongPerPegawai: untuk setiap pegawai, list tanggal yang masih kosong
+        // (bukan libur, bukan absen, bukan diblokir, belum ada dinas)
+        $tanggalKosongPerPegawai = [];
         foreach ($allPegawai as $peg) {
-            $dinasPegawai = $dinasData->where('user_id', $peg->id);
-            $tanggalDinas = $dinasPegawai->map(fn($d) => [
-                'tanggal'    => $d->tanggal->format('Y-m-d'),
-                'tanggal_fmt'=> $d->tanggal->format('d/m'),
-                'nama_hari'  => $namaHariMap[$d->tanggal->dayOfWeek],
-                'kegiatan'   => $d->kegiatan->nama ?? '-',
-                'kode'       => $d->kegiatan->kode ?? '-',
-            ])->values();
+            $kosong = [];
+            foreach ($dates as $d) {
+                $tgl = $d['tanggal'];
+                // Skip libur/weekend
+                if ($d['is_weekend']) continue;
+                // Skip sudah ada dinas
+                if (isset($matrix[$peg->id][$tgl])) continue;
+                // Skip ada absensi (tidak hadir)
+                if (isset($absensiMatrix[$peg->id][$tgl])) continue;
+                // Skip diblokir per orang atau seluruh tanggal
+                if (isset($blokirMatrix[$peg->id][$tgl])) continue;
+                if (isset($blokirMatrix['all'][$tgl])) continue;
 
-            $rekapPegawai[] = [
-                'id'           => $peg->id,
-                'nama'         => $peg->name,
-                'jabatan'      => $peg->jabatan ?? '-',
-                'penempatan'   => $peg->penempatan ?? '-',
-                'jumlah'       => $dinasPegawai->count(),
-                'tanggal_list' => $tanggalDinas,
-                'sudah_dinas'  => $dinasPegawai->count() > 0,
+                $kosong[] = [
+                    'tanggal' => $tgl,
+                    'hari' => $d['hari'],
+                    'nama_hari_pendek' => substr($d['nama_hari'], 0, 3),
+                ];
+            }
+            // Sembunyikan pegawai yang sudah penuh (jumlah_kosong = 0)
+            if (count($kosong) === 0) continue;
+
+            $tanggalKosongPerPegawai[] = [
+                'id' => $peg->id,
+                'nama' => $peg->name,
+                'jabatan' => $peg->jabatan ?? '-',
+                'jumlah_kosong' => count($kosong),
+                'tanggal_kosong' => $kosong,
             ];
         }
-
-        // Pegawai belum dinas
-        $pegawaiDinasIds  = $dinasData->pluck('user_id')->unique()->toArray();
-        $pegawaiBelumDinas = $allPegawai->whereNotIn('id', $pegawaiDinasIds)->values();
 
         return view('public.dinas', compact(
-            'dateInfo', 'tanggalTidakTersedia', 'tanggalTerisi', 'tanggalTersedia',
-            'rekapPegawai', 'pegawaiBelumDinas', 'allPegawai', 'dinasData',
-            'bulan', 'tahun', 'namaBulan', 'namaInstansi', 'daysInMonth'
+            'allPegawai', 'bulan', 'tahun', 'namaBulan', 'namaInstansi', 'daysInMonth',
+            'matrix', 'absensiMatrix', 'blokirMatrix', 'kepalaAbsen', 'kepalaInfo', 'dates',
+            'tanggalKosongPerPegawai'
         ));
     }
 }

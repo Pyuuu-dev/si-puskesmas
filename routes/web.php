@@ -87,6 +87,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/perjalanan-dinas/spj', [PerjalananDinasController::class, 'toggleSpj'])
         ->middleware('role:super_admin,kepala')
         ->name('perjalanan-dinas.spj');
+    Route::post('/perjalanan-dinas/kepala-keterangan', [PerjalananDinasController::class, 'updateKepalaKeterangan'])
+        ->middleware('role:super_admin,kepala')
+        ->name('perjalanan-dinas.kepala-keterangan');
 
     // Pegawai Management
     Route::get('/pegawai', [PegawaiController::class, 'index'])

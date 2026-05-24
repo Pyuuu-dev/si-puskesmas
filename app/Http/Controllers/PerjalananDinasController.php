@@ -160,6 +160,43 @@ class PerjalananDinasController extends Controller
             }
         }
 
+        // Detect kepala (single source of truth: role=kepala)
+        $kepala = User::where('role', 'kepala')->orderBy('id')->first();
+        $kepalaAbsen = []; // [tanggal => {absensi_id, status, label, keterangan}]
+        $kepalaInfo = null;
+        if ($kepala) {
+            $kepalaInfo = [
+                'id' => $kepala->id,
+                'name' => $kepala->name,
+            ];
+            $statusLabel = [
+                'izin' => 'Izin',
+                'sakit' => 'Sakit',
+                'cuti' => 'Cuti',
+                'cuti_bersalin' => 'Cuti Bersalin',
+                'cuti_tahunan' => 'Cuti Tahunan',
+                'dinas_luar' => 'Dinas Luar',
+                'ijin_belajar' => 'Ijin Belajar',
+                'alfa' => 'Tidak Hadir',
+            ];
+            $kepalaAbsensi = Absensi::where('user_id', $kepala->id)
+                ->whereMonth('tanggal', $bulan)
+                ->whereYear('tanggal', $tahun)
+                ->where('slot', 'pagi')
+                ->whereIn('status', array_keys($statusLabel))
+                ->orderBy('tanggal')
+                ->get();
+            foreach ($kepalaAbsensi as $a) {
+                $key = $a->tanggal->format('Y-m-d');
+                $kepalaAbsen[$key] = [
+                    'absensi_id' => $a->id,
+                    'status' => $a->status,
+                    'label' => $statusLabel[$a->status] ?? ucfirst(str_replace('_', ' ', $a->status)),
+                    'keterangan' => $a->keterangan,
+                ];
+            }
+        }
+
         $namaBulan = Carbon::createFromDate($tahun, $bulan, 1)->locale('id')->isoFormat('MMMM');
 
         // Get blokir data for this month
@@ -194,7 +231,9 @@ class PerjalananDinasController extends Controller
             'kodeKegiatan',
             'menuKegiatan',
             'absensiMatrix',
-            'blokirMatrix'
+            'blokirMatrix',
+            'kepalaAbsen',
+            'kepalaInfo'
         ));
     }
 
@@ -483,4 +522,46 @@ class PerjalananDinasController extends Controller
         ]);
     }
 
+    public function updateKepalaKeterangan(Request $request)
+    {
+        // Permission gate
+        if (!in_array(auth()->user()->role, ['super_admin', 'kepala'])) {
+            abort(403, 'Tidak diizinkan');
+        }
+
+        $validated = $request->validate([
+            'absensi_id' => 'required|exists:absensi,id',
+            'keterangan' => 'nullable|string|max:255',
+        ]);
+
+        $absensi = Absensi::with('user')->findOrFail($validated['absensi_id']);
+
+        // Pastikan record absensi memang milik kepala
+        if (!$absensi->user || $absensi->user->role !== 'kepala') {
+            abort(403, 'Hanya keterangan kepala yang dapat diubah dari halaman ini.');
+        }
+
+        $absensi->update([
+            'keterangan' => $validated['keterangan'] ?? null,
+        ]);
+
+        ActivityLogger::log(
+            event: 'update',
+            module: 'perjalanan_dinas',
+            description: "Mengubah keterangan ketidakhadiran kepala pada {$absensi->tanggal->format('Y-m-d')}",
+            subject: $absensi,
+            properties: [
+                'absensi_id' => $absensi->id,
+                'keterangan' => $validated['keterangan'] ?? null,
+            ],
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Keterangan diperbarui.',
+            'data' => [
+                'keterangan' => $absensi->keterangan,
+            ],
+        ]);
+    }
 }
