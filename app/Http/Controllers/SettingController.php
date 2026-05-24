@@ -25,6 +25,7 @@ class SettingController extends Controller
             'backup_jam_2' => Setting::get('backup_jam_2', '14:00'),
             'backup_jam_3' => Setting::get('backup_jam_3', '20:00'),
             'logo_instansi' => Setting::get('logo_instansi', ''),
+            'tarif_perjalanan_dinas' => Setting::get('tarif_perjalanan_dinas', 80000),
         ];
 
         $order = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
@@ -49,6 +50,7 @@ class SettingController extends Controller
             'backup_jam_2' => 'nullable|string|max:5',
             'backup_jam_3' => 'nullable|string|max:5',
             'logo_instansi' => 'nullable|image|mimes:png,jpg,jpeg,svg,ico|max:2048',
+            'tarif_perjalanan_dinas' => 'nullable|numeric|min:0',
         ]);
 
         // Handle logo upload

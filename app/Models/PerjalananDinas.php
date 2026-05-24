@@ -15,6 +15,7 @@ class PerjalananDinas extends Model
         'rincian_menu_id',
         'kegiatan_id',
         'keterangan',
+        'tarif_per_hari',
         'spj_checked',
         'spj_catatan',
         'spj_checked_by',
@@ -25,6 +26,7 @@ class PerjalananDinas extends Model
     {
         return [
             'tanggal' => 'date',
+            'tarif_per_hari' => 'decimal:0',
             'spj_checked' => 'boolean',
             'spj_checked_at' => 'datetime',
         ];

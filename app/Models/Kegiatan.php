@@ -28,4 +28,9 @@ class Kegiatan extends Model
     {
         return $this->belongsTo(RincianMenu::class);
     }
+
+    public function perjalananDinas()
+    {
+        return $this->hasMany(PerjalananDinas::class);
+    }
 }

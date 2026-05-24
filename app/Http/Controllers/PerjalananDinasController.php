@@ -10,6 +10,7 @@ use App\Models\KodeKegiatan;
 use App\Models\MenuKegiatan;
 use App\Models\PerjalananDinas;
 use App\Models\RincianMenu;
+use App\Models\Setting;
 use App\Models\TanggalLibur;
 use App\Models\User;
 use App\Services\ActivityLogger;
@@ -224,12 +225,16 @@ class PerjalananDinasController extends Controller
         ];
 
         if ($record) {
+            // Tarif tidak diubah saat update — preserve snapshot historis.
             $record->update($data);
             $eventType = 'update';
         } else {
+            // Snapshot tarif perjalanan dinas saat ini (default 80.000 jika setting belum ada).
+            $tarifPerHari = (float) Setting::get('tarif_perjalanan_dinas', 80000);
             $record = PerjalananDinas::create(array_merge($data, [
                 'user_id' => $validated['user_id'],
                 'tanggal' => $tanggal,
+                'tarif_per_hari' => $tarifPerHari,
             ]));
             $eventType = 'create';
         }

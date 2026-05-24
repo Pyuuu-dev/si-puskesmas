@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Kegiatan;
 use App\Models\MenuKegiatan;
+use App\Models\PerjalananDinas;
 use App\Models\RincianMenu;
+use App\Models\Setting;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 
@@ -12,12 +14,23 @@ class KodeKegiatanController extends Controller
 {
     public function index()
     {
-        $menuKegiatan = MenuKegiatan::with(['rincianMenu.kegiatan'])
+        $tahunBerjalan = now()->year;
+
+        $menuKegiatan = MenuKegiatan::with(['rincianMenu.kegiatan' => function ($q) use ($tahunBerjalan) {
+            $q->withSum(['perjalananDinas as terpakai_tahun' => function ($qq) use ($tahunBerjalan) {
+                $qq->whereYear('tanggal', $tahunBerjalan);
+            }], 'tarif_per_hari')
+              ->withCount(['perjalananDinas as total_tanggal_tahun' => function ($qq) use ($tahunBerjalan) {
+                  $qq->whereYear('tanggal', $tahunBerjalan);
+              }]);
+        }])
             ->orderBy('urutan')
             ->orderBy('nama')
             ->get();
 
-        return view('kode-kegiatan.index', compact('menuKegiatan'));
+        $tarifPerjalananDinas = (float) Setting::get('tarif_perjalanan_dinas', 80000);
+
+        return view('kode-kegiatan.index', compact('menuKegiatan', 'tahunBerjalan', 'tarifPerjalananDinas'));
     }
 
     // ===== MENU (Level 1) =====
@@ -212,15 +225,16 @@ class KodeKegiatanController extends Controller
         $namaHariMap = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         $namaBulanMap = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
-        $records = \App\Models\PerjalananDinas::where('kegiatan_id', $id)
+        $records = PerjalananDinas::where('kegiatan_id', $id)
             ->whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)
             ->with('user')
             ->orderBy('tanggal')
             ->get();
 
-        // Group per pegawai
+        // Group per pegawai (untuk listing detail di periode bulan terpilih)
         $grouped = [];
+        $terpakaiBulan = 0.0;
         foreach ($records as $rec) {
             $userId = $rec->user_id;
             if (!isset($grouped[$userId])) {
@@ -230,14 +244,19 @@ class KodeKegiatanController extends Controller
                     'jabatan'    => $rec->user->jabatan ?? '-',
                     'penempatan' => ucfirst($rec->user->penempatan ?? 'induk'),
                     'tanggal'    => [],
+                    'subtotal'   => 0.0,
                 ];
             }
             $tgl = $rec->tanggal;
+            $tarif = (float) $rec->tarif_per_hari;
+            $terpakaiBulan += $tarif;
+            $grouped[$userId]['subtotal'] += $tarif;
             $grouped[$userId]['tanggal'][] = [
                 'iso'      => $tgl->format('Y-m-d'),
                 'display'  => $namaHariMap[$tgl->dayOfWeek] . ', ' . $tgl->day . ' ' . $namaBulanMap[$tgl->month] . ' ' . $tgl->year,
                 'short'    => $tgl->format('d/m'),
                 'hari'     => substr($namaHariMap[$tgl->dayOfWeek], 0, 3),
+                'tarif'    => $tarif,
             ];
         }
 
@@ -251,16 +270,60 @@ class KodeKegiatanController extends Controller
             })
             ->all();
 
+        // Akumulasi sepanjang tahun anggaran (terpisah dari filter bulan)
+        $tahunQuery = PerjalananDinas::where('kegiatan_id', $id)
+            ->whereYear('tanggal', $tahun);
+
+        $terpakaiTahun     = (float) (clone $tahunQuery)->sum('tarif_per_hari');
+        $totalTanggalTahun = (int)   (clone $tahunQuery)->count();
+        $totalPegawaiTahun = (int)   (clone $tahunQuery)->distinct('user_id')->count('user_id');
+
+        $anggaran = (float) ($kegiatan->anggaran ?? 0);
+        $sisaTahun = $anggaran - $terpakaiTahun;
+        $persentase = $anggaran > 0 ? min(100, ($terpakaiTahun / $anggaran) * 100) : null;
+
+        $tarifTerkini = (float) Setting::get('tarif_perjalanan_dinas', 80000);
+
+        $rincianMenu = $kegiatan->rincianMenu;
+        $menu        = $rincianMenu?->menuKegiatan;
+
         return response()->json([
             'success' => true,
             'kegiatan' => [
-                'id'    => $kegiatan->id,
-                'kode'  => $kegiatan->kode,
-                'nama'  => $kegiatan->nama,
-                'warna' => $kegiatan->rincianMenu->menuKegiatan->warna ?? '#6B7280',
+                'id'              => $kegiatan->id,
+                'kode'            => $kegiatan->kode,
+                'nama'            => $kegiatan->nama,
+                'pemegang_program'=> $kegiatan->pemegang_program,
+                'anggaran'        => $anggaran,
+                'warna'           => $menu->warna ?? '#6B7280',
+                'rincian_menu'    => $rincianMenu ? [
+                    'id'   => $rincianMenu->id,
+                    'nama' => $rincianMenu->nama,
+                ] : null,
+                'menu'            => $menu ? [
+                    'id'    => $menu->id,
+                    'nama'  => $menu->nama,
+                    'warna' => $menu->warna,
+                ] : null,
             ],
+            'tarif_terkini' => $tarifTerkini,
             'bulan' => $bulan,
             'tahun' => $tahun,
+            // Periode bulan yang difilter (untuk daftar pemakai)
+            'periode_bulan' => [
+                'total_pegawai' => count($list),
+                'total_tanggal' => $records->count(),
+                'terpakai'      => $terpakaiBulan,
+            ],
+            // Akumulasi tahun anggaran (untuk pagu/sisa)
+            'periode_tahun' => [
+                'total_pegawai'      => $totalPegawaiTahun,
+                'total_tanggal'      => $totalTanggalTahun,
+                'terpakai'           => $terpakaiTahun,
+                'sisa'               => $sisaTahun,
+                'persentase_terpakai'=> $persentase,
+            ],
+            // Backward compat untuk JS lama
             'total_pegawai'  => count($list),
             'total_tanggal'  => $records->count(),
             'pemakai'        => $list,
