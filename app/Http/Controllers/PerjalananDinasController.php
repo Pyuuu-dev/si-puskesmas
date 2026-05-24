@@ -105,12 +105,12 @@ class PerjalananDinasController extends Controller
         }
 
         // Get all perjalanan dinas for this month
-        $dinasData = PerjalananDinas::with(['kegiatan.rincianMenu.menuKegiatan'])
+        $dinasData = PerjalananDinas::with(['kegiatan.rincianMenu.menuKegiatan', 'spjCheckedBy'])
             ->whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)
             ->get();
 
-        // Build matrix: matrix[user_id][tanggal] = {kegiatan_id, kode, warna, keterangan}
+        // Build matrix: matrix[user_id][tanggal] = {kegiatan_id, kode, warna, keterangan, spj_*}
         $matrix = [];
         foreach ($dinasData as $record) {
             if ($record->kegiatan_id && $record->kegiatan) {
@@ -121,6 +121,11 @@ class PerjalananDinasController extends Controller
                     'kode' => $kegiatan->kode ?? substr($kegiatan->nama, 0, 5),
                     'warna' => $warna,
                     'keterangan' => $record->keterangan,
+                    'spj_checked' => (bool) $record->spj_checked,
+                    'spj_catatan' => $record->spj_catatan,
+                    'spj_checked_by_name' => $record->spjCheckedBy?->name,
+                    'spj_checked_at' => $record->spj_checked_at?->locale('id')->isoFormat('D MMM YYYY HH:mm'),
+                    'kegiatan_nama' => $kegiatan->nama,
                 ];
             }
         }
@@ -299,28 +304,33 @@ class PerjalananDinasController extends Controller
             'keterangan' => 'nullable|string|max:255',
         ]);
 
+        $userId = $validated['user_id'] ?? null;
         $tanggal = date('Y-m-d', strtotime($validated['tanggal']));
+        $keterangan = $validated['keterangan'] ?? null;
 
         DinasBlokir::updateOrCreate(
             [
-                'user_id' => $validated['user_id'] ?? null,
+                'user_id' => $userId,
                 'tanggal' => $tanggal,
             ],
             [
-                'keterangan' => $validated['keterangan'] ?? null,
+                'keterangan' => $keterangan,
                 'created_by' => auth()->id(),
             ]
         );
 
-        $target = $validated['user_id'] ? "user " . (User::find($validated['user_id'])?->name ?? "#{$validated['user_id']}") : "seluruh tanggal";
+        $target = $userId
+            ? "user " . (User::find($userId)?->name ?? "#{$userId}")
+            : "seluruh tanggal";
+
         ActivityLogger::log(
             event: 'create',
             module: 'perjalanan_dinas',
             description: "Memblokir sel dinas pada {$tanggal} ({$target})",
             properties: [
-                'user_id'    => $validated['user_id'] ?? null,
+                'user_id'    => $userId,
                 'tanggal'    => $tanggal,
-                'keterangan' => $validated['keterangan'] ?? null,
+                'keterangan' => $keterangan,
             ],
         );
 
@@ -391,4 +401,81 @@ class PerjalananDinasController extends Controller
             'message' => "Semua blokir di tanggal ini berhasil dibuka ({$deleted} data).",
         ]);
     }
+
+    public function toggleSpj(Request $request)
+    {
+        // Permission gate
+        if (!in_array(auth()->user()->role, ['super_admin', 'kepala'])) {
+            abort(403, 'Tidak diizinkan');
+        }
+
+        $validated = $request->validate([
+            'user_id'    => 'required|exists:users,id',
+            'tanggal'    => 'required|date',
+            'is_checked' => 'required|boolean',
+            'catatan'    => 'nullable|string|max:255',
+        ]);
+
+        $tanggal = date('Y-m-d', strtotime($validated['tanggal']));
+
+        $record = PerjalananDinas::where('user_id', $validated['user_id'])
+            ->whereDate('tanggal', $tanggal)
+            ->first();
+
+        if (!$record) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data perjalanan dinas tidak ditemukan.',
+            ], 404);
+        }
+
+        if ($validated['is_checked']) {
+            $record->update([
+                'spj_checked'    => true,
+                'spj_catatan'    => $validated['catatan'] ?? null,
+                'spj_checked_by' => auth()->id(),
+                'spj_checked_at' => now(),
+            ]);
+            $eventDesc = "Memeriksa SPJ";
+        } else {
+            $record->update([
+                'spj_checked'    => false,
+                'spj_catatan'    => null,
+                'spj_checked_by' => null,
+                'spj_checked_at' => null,
+            ]);
+            $eventDesc = "Membatalkan periksa SPJ";
+        }
+
+        $record->load(['kegiatan', 'spjCheckedBy']);
+
+        $userTarget = User::find($validated['user_id']);
+        $namaUser = $userTarget?->name ?? "User#{$validated['user_id']}";
+        $kodeKeg = $record->kegiatan?->kode ?? '-';
+
+        ActivityLogger::log(
+            event: $validated['is_checked'] ? 'create' : 'delete',
+            module: 'perjalanan_dinas',
+            description: "{$eventDesc} {$namaUser} pada {$tanggal} ({$kodeKeg})",
+            subject: $record,
+            properties: [
+                'user_id'    => $validated['user_id'],
+                'tanggal'    => $tanggal,
+                'is_checked' => $validated['is_checked'],
+                'catatan'    => $validated['catatan'] ?? null,
+            ],
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => $validated['is_checked'] ? 'SPJ ditandai sudah diperiksa.' : 'Tanda periksa SPJ dibatalkan.',
+            'data' => [
+                'spj_checked'         => (bool) $record->spj_checked,
+                'spj_catatan'         => $record->spj_catatan,
+                'spj_checked_by_name' => $record->spjCheckedBy?->name,
+                'spj_checked_at'      => $record->spj_checked_at?->locale('id')->isoFormat('D MMM YYYY HH:mm'),
+            ],
+        ]);
+    }
+
 }

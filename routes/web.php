@@ -84,6 +84,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/perjalanan-dinas/blokir', [PerjalananDinasController::class, 'unblokir'])
         ->middleware('role:super_admin,kepala')
         ->name('perjalanan-dinas.unblokir-delete');
+    Route::post('/perjalanan-dinas/spj', [PerjalananDinasController::class, 'toggleSpj'])
+        ->middleware('role:super_admin,kepala')
+        ->name('perjalanan-dinas.spj');
 
     // Pegawai Management
     Route::get('/pegawai', [PegawaiController::class, 'index'])

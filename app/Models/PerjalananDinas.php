@@ -15,12 +15,18 @@ class PerjalananDinas extends Model
         'rincian_menu_id',
         'kegiatan_id',
         'keterangan',
+        'spj_checked',
+        'spj_catatan',
+        'spj_checked_by',
+        'spj_checked_at',
     ];
 
     protected function casts(): array
     {
         return [
             'tanggal' => 'date',
+            'spj_checked' => 'boolean',
+            'spj_checked_at' => 'datetime',
         ];
     }
 
@@ -42,5 +48,10 @@ class PerjalananDinas extends Model
     public function kegiatan()
     {
         return $this->belongsTo(Kegiatan::class);
+    }
+
+    public function spjCheckedBy()
+    {
+        return $this->belongsTo(User::class, 'spj_checked_by');
     }
 }
