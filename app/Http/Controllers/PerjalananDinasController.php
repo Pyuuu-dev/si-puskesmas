@@ -111,23 +111,41 @@ class PerjalananDinasController extends Controller
             ->whereYear('tanggal', $tahun)
             ->get();
 
-        // Build matrix: matrix[user_id][tanggal] = {kegiatan_id, kode, warna, keterangan, spj_*}
+        // Build matrix: matrix[user_id][tanggal] = {kegiatan_id, kode, warna, keterangan, spj_*, is_manual}
         $matrix = [];
         foreach ($dinasData as $record) {
+            $cell = null;
+
             if ($record->kegiatan_id && $record->kegiatan) {
                 $kegiatan = $record->kegiatan;
                 $warna = $kegiatan->rincianMenu->menuKegiatan->warna ?? '#6B7280';
-                $matrix[$record->user_id][$record->tanggal->format('Y-m-d')] = [
+                $cell = [
                     'kegiatan_id' => $record->kegiatan_id,
                     'kode' => $kegiatan->kode ?? substr($kegiatan->nama, 0, 5),
                     'warna' => $warna,
+                    'kegiatan_nama' => $kegiatan->nama,
+                    'is_manual' => false,
+                    'manual_label' => null,
+                ];
+            } elseif ($record->manual_label) {
+                $cell = [
+                    'kegiatan_id' => null,
+                    'kode' => $record->manual_label,
+                    'warna' => '#6B7280',
+                    'kegiatan_nama' => $record->manual_label,
+                    'is_manual' => true,
+                    'manual_label' => $record->manual_label,
+                ];
+            }
+
+            if ($cell) {
+                $matrix[$record->user_id][$record->tanggal->format('Y-m-d')] = array_merge($cell, [
                     'keterangan' => $record->keterangan,
                     'spj_checked' => (bool) $record->spj_checked,
                     'spj_catatan' => $record->spj_catatan,
                     'spj_checked_by_name' => $record->spjCheckedBy?->name,
                     'spj_checked_at' => $record->spj_checked_at?->locale('id')->isoFormat('D MMM YYYY HH:mm'),
-                    'kegiatan_nama' => $kegiatan->nama,
-                ];
+                ]);
             }
         }
 
@@ -242,25 +260,51 @@ class PerjalananDinasController extends Controller
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'tanggal' => 'required|date',
-            'kegiatan_id' => 'required|exists:kegiatan,id',
+            'kegiatan_id' => 'nullable|exists:kegiatan,id',
+            'manual_label' => 'nullable|string|max:30',
             'keterangan' => 'nullable|string|max:255',
         ]);
 
+        // Wajib salah satu: kegiatan_id atau manual_label.
+        $kegiatanId  = $validated['kegiatan_id']  ?? null;
+        $manualLabel = isset($validated['manual_label']) ? trim($validated['manual_label']) : null;
+        if ($manualLabel === '') $manualLabel = null;
+
+        if (!$kegiatanId && !$manualLabel) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pilih kegiatan atau isi label manual.',
+            ], 422);
+        }
+        if ($kegiatanId && $manualLabel) {
+            // Hanya salah satu yang diterima — anggap user pilih kegiatan BOK.
+            $manualLabel = null;
+        }
+
         $tanggal = date('Y-m-d', strtotime($validated['tanggal']));
 
-        // Get kegiatan untuk ambil kode dan warna
-        $kegiatan = Kegiatan::with('rincianMenu.menuKegiatan')->findOrFail($validated['kegiatan_id']);
-        $warna = $kegiatan->rincianMenu->menuKegiatan->warna ?? '#6B7280';
+        $kegiatan = null;
+        $warna = '#6B7280';
+        $rincianMenuId = null;
+        $kodeDisplay = $manualLabel;
+
+        if ($kegiatanId) {
+            $kegiatan = Kegiatan::with('rincianMenu.menuKegiatan')->findOrFail($kegiatanId);
+            $warna = $kegiatan->rincianMenu->menuKegiatan->warna ?? '#6B7280';
+            $rincianMenuId = $kegiatan->rincian_menu_id;
+            $kodeDisplay = $kegiatan->kode ?? substr($kegiatan->nama, 0, 5);
+        }
 
         $record = PerjalananDinas::where('user_id', $validated['user_id'])
             ->whereDate('tanggal', $tanggal)
             ->first();
 
         $data = [
-            'kegiatan_id' => $validated['kegiatan_id'],
-            'rincian_menu_id' => $kegiatan->rincian_menu_id,
+            'kegiatan_id'      => $kegiatanId,
+            'rincian_menu_id'  => $rincianMenuId,
             'kode_kegiatan_id' => null,
-            'keterangan' => $validated['keterangan'] ?? null,
+            'manual_label'     => $manualLabel,
+            'keterangan'       => $validated['keterangan'] ?? null,
         ];
 
         if ($record) {
@@ -280,19 +324,22 @@ class PerjalananDinasController extends Controller
 
         $userTarget = User::find($validated['user_id']);
         $namaUser = $userTarget?->name ?? "User#{$validated['user_id']}";
-        $kodeKegiatan = $kegiatan->kode ?? substr($kegiatan->nama, 0, 5);
+        $kodeLog = $kegiatan?->kode ?? $manualLabel ?? '-';
+        $sumberLog = $kegiatanId ? 'kegiatan' : 'manual';
 
         ActivityLogger::log(
             event: $eventType,
             module: 'perjalanan_dinas',
-            description: ($eventType === 'create' ? "Menambah" : "Mengubah") . " perjalanan dinas {$namaUser} pada {$tanggal} ({$kodeKegiatan})",
+            description: ($eventType === 'create' ? "Menambah" : "Mengubah") . " perjalanan dinas {$namaUser} pada {$tanggal} ({$kodeLog}" . ($manualLabel ? ' · manual' : '') . ")",
             subject: $record,
             properties: [
-                'user_id'     => $validated['user_id'],
-                'tanggal'     => $tanggal,
-                'kegiatan_id' => $kegiatan->id,
-                'kode'        => $kegiatan->kode,
-                'keterangan'  => $validated['keterangan'] ?? null,
+                'user_id'      => $validated['user_id'],
+                'tanggal'      => $tanggal,
+                'kegiatan_id'  => $kegiatan?->id,
+                'kode'         => $kegiatan?->kode,
+                'manual_label' => $manualLabel,
+                'sumber'       => $sumberLog,
+                'keterangan'   => $validated['keterangan'] ?? null,
             ],
         );
 
@@ -300,9 +347,13 @@ class PerjalananDinasController extends Controller
             'success' => true,
             'message' => 'Perjalanan dinas berhasil disimpan.',
             'data' => [
-                'id' => $record->id,
-                'kode' => $kegiatan->kode ?? substr($kegiatan->nama, 0, 5),
-                'warna' => $warna,
+                'id'           => $record->id,
+                'kode'         => $kodeDisplay,
+                'warna'        => $warna,
+                'is_manual'    => $manualLabel !== null,
+                'manual_label' => $manualLabel,
+                'kegiatan_id'  => $kegiatan?->id,
+                'kegiatan_nama'=> $kegiatan?->nama ?? $manualLabel,
             ],
         ]);
     }
@@ -495,7 +546,7 @@ class PerjalananDinasController extends Controller
 
         $userTarget = User::find($validated['user_id']);
         $namaUser = $userTarget?->name ?? "User#{$validated['user_id']}";
-        $kodeKeg = $record->kegiatan?->kode ?? '-';
+        $kodeKeg = $record->kegiatan?->kode ?? $record->manual_label ?? '-';
 
         ActivityLogger::log(
             event: $validated['is_checked'] ? 'create' : 'delete',

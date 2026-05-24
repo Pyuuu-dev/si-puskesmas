@@ -15,6 +15,7 @@ class PerjalananDinas extends Model
         'rincian_menu_id',
         'kegiatan_id',
         'keterangan',
+        'manual_label',
         'tarif_per_hari',
         'spj_checked',
         'spj_catatan',

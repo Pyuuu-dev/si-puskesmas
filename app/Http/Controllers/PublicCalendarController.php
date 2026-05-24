@@ -92,6 +92,12 @@ class PublicCalendarController extends Controller
                             'warna' => $warna,
                             'pegawai' => $dinas->user->name ?? '-',
                         ];
+                    } elseif ($dinas->manual_label) {
+                        $kegiatanList[] = [
+                            'kode' => $dinas->manual_label,
+                            'warna' => '#6B7280',
+                            'pegawai' => $dinas->user->name ?? '-',
+                        ];
                     }
                 }
             }
@@ -172,7 +178,7 @@ class PublicCalendarController extends Controller
             ->get();
 
         // ===== MATRIX DATA (read-only) =====
-        // Build matrix[user_id][tanggal] = {kode, warna, kegiatan_nama, spj_checked}
+        // Build matrix[user_id][tanggal] = {kode, warna, kegiatan_nama, spj_checked, is_manual}
         $matrix = [];
         foreach ($dinasData as $r) {
             if ($r->kegiatan_id && $r->kegiatan) {
@@ -182,6 +188,15 @@ class PublicCalendarController extends Controller
                     'warna' => $warna,
                     'kegiatan_nama' => $r->kegiatan->nama,
                     'spj_checked' => (bool) $r->spj_checked,
+                    'is_manual' => false,
+                ];
+            } elseif ($r->manual_label) {
+                $matrix[$r->user_id][$r->tanggal->format('Y-m-d')] = [
+                    'kode' => $r->manual_label,
+                    'warna' => '#6B7280',
+                    'kegiatan_nama' => $r->manual_label,
+                    'spj_checked' => (bool) $r->spj_checked,
+                    'is_manual' => true,
                 ];
             }
         }

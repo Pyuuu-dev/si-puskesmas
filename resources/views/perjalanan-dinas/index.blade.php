@@ -122,6 +122,7 @@
             <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-purple-200"></span> Ijin Belajar</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-200"></span> Tidak Hadir</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-100 border border-red-300"></span> Libur</span>
+            <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded" style="background-color:#6B7280"></span> Manual (tanpa kode BOK)</span>
             <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-900"></span> <span class="font-semibold">Diblokir</span></span>
         </div>
         <p class="text-[10px] text-blue-500 mt-2">Klik pada sel tanggal untuk memilih kegiatan. Sel <strong>hitam</strong> = tidak tersedia (diblokir admin). Admin dapat klik sel hitam untuk melihat alasan atau membuka blokir.</p>
@@ -330,6 +331,8 @@
                                             kode: '{{ $cellData['kode'] ?? '' }}',
                                             warna: '{{ $cellData['warna'] ?? '' }}',
                                             kegiatanNama: '{{ addslashes($cellData['kegiatan_nama'] ?? '') }}',
+                                            isManual: {{ !empty($cellData['is_manual']) ? 'true' : 'false' }},
+                                            manualLabel: '{{ addslashes($cellData['manual_label'] ?? '') }}',
                                             keterangan: '{{ addslashes($cellData['keterangan'] ?? '') }}',
                                             absensiStatus: '{{ $absensiStatus ?? '' }}',
                                             absensiLabel: '{{ $absensiStatus ? ($absensiLabels[$absensiStatus] ?? '?') : '' }}',
@@ -512,6 +515,43 @@
                class="w-full text-xs border-gray-200 rounded px-2 py-1 mt-1 focus:border-indigo-500 focus:ring-indigo-500" @click.stop>
     </div>
 
+    {{-- Section: Isi Manual (tanpa kode kegiatan BOK) --}}
+    <div class="px-2 py-2 border-b border-gray-100 bg-gray-50 shrink-0">
+        <div x-show="!showManualForm">
+            <button type="button" @click="openManualForm()"
+                    class="w-full px-2 py-1.5 text-left text-[11px] font-medium text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-100 flex items-center gap-2 transition-colors">
+                <span class="w-5 h-5 rounded bg-gray-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0">M</span>
+                <span class="flex-1">Isi manual (tanpa kode BOK)</span>
+                <svg class="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            </button>
+        </div>
+        <div x-show="showManualForm" x-cloak class="space-y-1.5">
+            <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Isi Manual</span>
+                <button type="button" @click="showManualForm = false" class="ml-auto p-0.5 text-gray-400 hover:text-gray-600">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <input type="text" x-model="manualLabel" maxlength="30" placeholder="Label pendek (max 30 karakter)" x-ref="manualInput"
+                   @keydown.enter.prevent="saveManual()" @click.stop
+                   class="w-full text-xs border-gray-300 rounded px-2 py-1 focus:border-indigo-500 focus:ring-indigo-500">
+            <input type="text" x-model="manualKeterangan" maxlength="255" placeholder="Keterangan (opsional)"
+                   @keydown.enter.prevent="saveManual()" @click.stop
+                   class="w-full text-[11px] border-gray-300 rounded px-2 py-1 focus:border-indigo-500 focus:ring-indigo-500">
+            <div class="flex gap-1.5">
+                <button type="button" @click="showManualForm = false"
+                        class="flex-1 px-2 py-1 text-[11px] font-medium text-gray-600 bg-white border border-gray-200 rounded hover:bg-gray-100">
+                    Batal
+                </button>
+                <button type="button" @click="saveManual()" :disabled="saving || !manualLabel.trim()"
+                        class="flex-1 px-2 py-1 text-[11px] font-medium text-white bg-gray-700 rounded hover:bg-gray-800 disabled:opacity-50">
+                    <span x-text="saving ? 'Menyimpan...' : 'Simpan'"></span>
+                </button>
+            </div>
+            <p class="text-[10px] text-gray-500 leading-tight">Tarif harian tetap snapshot dari setting. SPJ tetap bisa dichecklist.</p>
+        </div>
+    </div>
+
     {{-- Scrollable list --}}
     <div class="flex-1 overflow-y-auto min-h-0">
         @foreach($menuKegiatan as $menu)
@@ -593,12 +633,17 @@
 
                 {{-- Section: Kegiatan saat ini --}}
                 <div>
-                    <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Kegiatan</p>
-                    <div class="flex items-start gap-2 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                    <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                        <span x-show="!isManual">Kegiatan</span>
+                        <span x-show="isManual">Dinas Manual</span>
+                    </p>
+                    <div class="flex items-start gap-2 p-3 rounded-lg border bg-gray-50"
+                         :class="isManual ? 'border-gray-300' : 'border-gray-200'">
                         <span class="w-7 h-7 rounded shrink-0 flex items-center justify-center text-[10px] font-bold text-white" :style="'background-color:' + warna" x-text="kode"></span>
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-semibold text-gray-900 leading-tight" x-text="kode"></p>
                             <p class="text-[11px] text-gray-600 leading-snug mt-0.5" x-text="kegiatanNama"></p>
+                            <p x-show="isManual" class="text-[10px] text-gray-500 mt-1 italic">Tanpa kode kegiatan BOK · diisi manual</p>
                         </div>
                     </div>
                 </div>
@@ -639,12 +684,17 @@
                     <p class="text-xs font-semibold text-gray-700 mb-2">Aksi Kegiatan</p>
 
                     {{-- Inline picker --}}
-                    <div x-show="!showPicker">
+                    <div x-show="!showPicker && !showManualEdit">
                         <div class="grid grid-cols-1 gap-2">
                             <button @click="showPicker = true; pickerSearch = ''"
                                     class="w-full px-3 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487z"/></svg>
-                                Ubah Kegiatan
+                                <span x-text="isManual ? 'Ubah ke Kegiatan BOK' : 'Ubah Kegiatan'"></span>
+                            </button>
+                            <button @click="openManualEdit()"
+                                    class="w-full px-3 py-2 text-xs font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center gap-2">
+                                <span class="w-4 h-4 rounded bg-gray-500 text-white flex items-center justify-center text-[8px] font-bold">M</span>
+                                <span x-text="isManual ? 'Ubah Label Manual' : 'Ubah ke Manual'"></span>
                             </button>
                             <button @click="hapusKegiatan()" :disabled="saving"
                                     class="w-full px-3 py-2 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
@@ -657,6 +707,25 @@
                                 Blokir Sel Ini
                             </button>
                         </div>
+                    </div>
+
+                    {{-- Form Manual --}}
+                    <div x-show="showManualEdit" x-cloak class="space-y-2">
+                        <div class="flex items-center gap-2 mb-1">
+                            <button @click="showManualEdit = false" class="p-1 text-gray-500 hover:text-gray-700 rounded">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+                            </button>
+                            <span class="text-xs font-semibold text-gray-700">Isi Manual</span>
+                        </div>
+                        <input type="text" x-model="manualLabelInput" maxlength="30" placeholder="Label pendek (max 30 karakter)"
+                               class="w-full text-xs border-gray-300 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500">
+                        <input type="text" x-model="manualKetInput" maxlength="255" placeholder="Keterangan (opsional)"
+                               class="w-full text-xs border-gray-300 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500">
+                        <button @click="saveManualEdit()" :disabled="saving || !manualLabelInput.trim()"
+                                class="w-full px-3 py-2 text-xs font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:opacity-50">
+                            <span x-text="saving ? 'Menyimpan...' : 'Simpan Manual'"></span>
+                        </button>
+                        <p class="text-[10px] text-gray-500 leading-tight">SPJ akan direset karena entri kegiatan berubah.</p>
                     </div>
 
                     <div x-show="showPicker" x-cloak>
@@ -919,6 +988,8 @@ document.addEventListener('alpine:init', () => {
         kode: config.kode,
         warna: config.warna,
         kegiatanNama: config.kegiatanNama || '',
+        isManual: !!config.isManual,
+        manualLabel: config.manualLabel || '',
         keterangan: config.keterangan,
         absensiStatus: config.absensiStatus || '',
         absensiLabel: config.absensiLabel || '',
@@ -938,6 +1009,8 @@ document.addEventListener('alpine:init', () => {
                     if ('kode' in d) this.kode = d.kode;
                     if ('warna' in d) this.warna = d.warna;
                     if ('kegiatanNama' in d) this.kegiatanNama = d.kegiatanNama;
+                    if ('isManual' in d) this.isManual = !!d.isManual;
+                    if ('manualLabel' in d) this.manualLabel = d.manualLabel || '';
                     if ('spjChecked' in d) this.spjChecked = d.spjChecked;
                     if ('spjCatatan' in d) this.spjCatatan = d.spjCatatan;
                     if ('spjCheckedByName' in d) this.spjCheckedByName = d.spjCheckedByName;
@@ -949,14 +1022,20 @@ document.addEventListener('alpine:init', () => {
         cellTitle() {
             const parts = [];
             if (this.absensiTitle) parts.push(this.absensiTitle);
-            if (this.kode) parts.push(this.kode + (this.kegiatanNama ? ': ' + this.kegiatanNama : ''));
+            if (this.kode) {
+                if (this.isManual) {
+                    parts.push('Manual: ' + this.kode);
+                } else {
+                    parts.push(this.kode + (this.kegiatanNama ? ': ' + this.kegiatanNama : ''));
+                }
+            }
             if (this.spjChecked) parts.push('SPJ ✓');
             return parts.join(' · ') || 'Klik untuk pilih kegiatan';
         },
 
         handleClick() {
-            // Admin/Kepala + ada kegiatan → buka modal SPJ
-            if (this.isAdmin && this.kegiatanId) {
+            // Admin/Kepala + ada kegiatan/manual → buka modal SPJ
+            if (this.isAdmin && (this.kegiatanId || this.isManual)) {
                 this.$dispatch('open-spj-modal', {
                     userId: this.userId,
                     namaUser: this.namaUser,
@@ -965,6 +1044,8 @@ document.addEventListener('alpine:init', () => {
                     kode: this.kode,
                     warna: this.warna,
                     kegiatanNama: this.kegiatanNama,
+                    isManual: this.isManual,
+                    manualLabel: this.manualLabel,
                     spjChecked: this.spjChecked,
                     spjCatatan: this.spjCatatan,
                     spjCheckedByName: this.spjCheckedByName,
@@ -980,6 +1061,8 @@ document.addEventListener('alpine:init', () => {
                     namaUser: this.namaUser,
                     tanggal: this.tanggal,
                     currentKegiatanId: this.kegiatanId,
+                    currentIsManual: this.isManual,
+                    currentManualLabel: this.manualLabel,
                     isAdmin: this.isAdmin,
                     cellRect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, height: rect.height },
                 }
@@ -997,10 +1080,16 @@ document.addEventListener('alpine:init', () => {
         namaUser: '',
         tanggal: '',
         currentKegiatanId: null,
+        currentIsManual: false,
+        currentManualLabel: '',
         isAdmin: false,
         // posisi
         positionStyle: 'top: 0; left: 0;',
         contextLabel: '',
+        // manual entry form
+        showManualForm: false,
+        manualLabel: '',
+        manualKeterangan: '',
 
         init() {
             window.addEventListener('open-kegiatan-picker', (e) => this.openAt(e.detail));
@@ -1013,13 +1102,18 @@ document.addEventListener('alpine:init', () => {
         },
 
         openAt(detail) {
-            this.userId            = detail.userId;
-            this.namaUser          = detail.namaUser;
-            this.tanggal           = detail.tanggal;
-            this.currentKegiatanId = detail.currentKegiatanId;
-            this.isAdmin           = !!detail.isAdmin;
-            this.search            = '';
-            this.saving            = false;
+            this.userId             = detail.userId;
+            this.namaUser           = detail.namaUser;
+            this.tanggal            = detail.tanggal;
+            this.currentKegiatanId  = detail.currentKegiatanId;
+            this.currentIsManual    = !!detail.currentIsManual;
+            this.currentManualLabel = detail.currentManualLabel || '';
+            this.isAdmin            = !!detail.isAdmin;
+            this.search             = '';
+            this.saving             = false;
+            this.showManualForm     = false;
+            this.manualLabel        = this.currentIsManual ? this.currentManualLabel : '';
+            this.manualKeterangan   = '';
 
             // Hitung posisi dropdown
             this.positionStyle = this.computePosition(detail.cellRect);
@@ -1036,6 +1130,17 @@ document.addEventListener('alpine:init', () => {
             // Auto focus search
             this.$nextTick(() => {
                 if (this.$refs.searchInput) this.$refs.searchInput.focus();
+            });
+        },
+
+        openManualForm() {
+            this.showManualForm = true;
+            // Pre-fill jika sel saat ini sudah manual
+            if (this.currentIsManual && this.currentManualLabel) {
+                this.manualLabel = this.currentManualLabel;
+            }
+            this.$nextTick(() => {
+                if (this.$refs.manualInput) this.$refs.manualInput.focus();
             });
         },
 
@@ -1082,6 +1187,7 @@ document.addEventListener('alpine:init', () => {
                     user_id: this.userId,
                     tanggal: this.tanggal,
                     kegiatan_id: kegiatanId,
+                    manual_label: null,
                     keterangan: null,
                 });
                 const data = await res.json();
@@ -1093,6 +1199,8 @@ document.addEventListener('alpine:init', () => {
                         kode: data.data.kode,
                         warna: data.data.warna,
                         kegiatanNama: kegiatanNama || '',
+                        isManual: false,
+                        manualLabel: '',
                         // Kegiatan baru → SPJ reset
                         spjChecked: false,
                         spjCatatan: '',
@@ -1110,9 +1218,53 @@ document.addEventListener('alpine:init', () => {
             this.saving = false;
         },
 
+        async saveManual() {
+            if (this.saving) return;
+            const label = (this.manualLabel || '').trim();
+            if (!label) {
+                window.toast('Label wajib diisi', 'error');
+                return;
+            }
+            this.saving = true;
+            try {
+                const res = await window.api.post('/perjalanan-dinas', {
+                    user_id: this.userId,
+                    tanggal: this.tanggal,
+                    kegiatan_id: null,
+                    manual_label: label,
+                    keterangan: this.manualKeterangan || null,
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.dispatchEvent(new CustomEvent('dinas-cell-update', { detail: {
+                        userId: this.userId,
+                        tanggal: this.tanggal,
+                        kegiatanId: null,
+                        kode: data.data.kode,
+                        warna: data.data.warna,
+                        kegiatanNama: data.data.kegiatan_nama || label,
+                        isManual: true,
+                        manualLabel: label,
+                        // Entri baru → SPJ reset
+                        spjChecked: false,
+                        spjCatatan: '',
+                        spjCheckedByName: '',
+                        spjCheckedAt: '',
+                    }}));
+                    window.toast('Dinas manual tersimpan', 'success');
+                    this.close();
+                } else {
+                    window.toast(data.message || 'Gagal menyimpan', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+            this.saving = false;
+        },
+
         async clearKegiatan() {
             if (this.saving) return;
-            if (!this.currentKegiatanId) {
+            if (!this.currentKegiatanId && !this.currentIsManual) {
                 this.close();
                 return;
             }
@@ -1132,6 +1284,8 @@ document.addEventListener('alpine:init', () => {
                         kode: '',
                         warna: '',
                         kegiatanNama: '',
+                        isManual: false,
+                        manualLabel: '',
                         spjChecked: false,
                         spjCatatan: '',
                         spjCheckedByName: '',
@@ -1356,6 +1510,7 @@ document.addEventListener('alpine:init', () => {
         show: false,
         saving: false,
         showPicker: false,
+        showManualEdit: false,
         pickerSearch: '',
         userId: null,
         namaUser: '',
@@ -1365,6 +1520,10 @@ document.addEventListener('alpine:init', () => {
         kode: '',
         warna: '',
         kegiatanNama: '',
+        isManual: false,
+        manualLabel: '',
+        manualLabelInput: '',
+        manualKetInput: '',
         spjChecked: false,
         spjCatatan: '',
         spjCheckedByName: '',
@@ -1378,11 +1537,16 @@ document.addEventListener('alpine:init', () => {
             this.kode              = detail.kode;
             this.warna             = detail.warna;
             this.kegiatanNama      = detail.kegiatanNama || '';
+            this.isManual          = !!detail.isManual;
+            this.manualLabel       = detail.manualLabel || '';
+            this.manualLabelInput  = '';
+            this.manualKetInput    = '';
             this.spjChecked        = !!detail.spjChecked;
             this.spjCatatan        = detail.spjCatatan || '';
             this.spjCheckedByName  = detail.spjCheckedByName || '';
             this.spjCheckedAt      = detail.spjCheckedAt || '';
             this.showPicker        = false;
+            this.showManualEdit    = false;
             this.pickerSearch      = '';
             this.saving            = false;
 
@@ -1393,6 +1557,66 @@ document.addEventListener('alpine:init', () => {
             this.tanggalFormatted = hariMap[d.getDay()] + ', ' + parseInt(day) + ' ' + bulanMap[parseInt(m)-1] + ' ' + y;
 
             this.show = true;
+        },
+
+        openManualEdit() {
+            this.showManualEdit   = true;
+            this.showPicker       = false;
+            this.manualLabelInput = this.isManual ? this.manualLabel : '';
+            this.manualKetInput   = '';
+        },
+
+        async saveManualEdit() {
+            if (this.saving) return;
+            const label = (this.manualLabelInput || '').trim();
+            if (!label) {
+                window.toast('Label wajib diisi', 'error');
+                return;
+            }
+            this.saving = true;
+            try {
+                const res = await window.api.post('/perjalanan-dinas', {
+                    user_id: this.userId,
+                    tanggal: this.tanggal,
+                    kegiatan_id: null,
+                    manual_label: label,
+                    keterangan: this.manualKetInput || null,
+                });
+                const data = await res.json();
+                if (data.success) {
+                    this.kegiatanId       = null;
+                    this.kode             = data.data.kode;
+                    this.warna            = data.data.warna;
+                    this.kegiatanNama     = data.data.kegiatan_nama || label;
+                    this.isManual         = true;
+                    this.manualLabel      = label;
+                    this.spjChecked       = false;
+                    this.spjCatatan       = '';
+                    this.spjCheckedByName = '';
+                    this.spjCheckedAt     = '';
+                    this.showManualEdit   = false;
+                    window.dispatchEvent(new CustomEvent('dinas-cell-update', { detail: {
+                        userId: this.userId,
+                        tanggal: this.tanggal,
+                        kegiatanId: null,
+                        kode: this.kode,
+                        warna: this.warna,
+                        kegiatanNama: this.kegiatanNama,
+                        isManual: true,
+                        manualLabel: label,
+                        spjChecked: false,
+                        spjCatatan: '',
+                        spjCheckedByName: '',
+                        spjCheckedAt: '',
+                    }}));
+                    window.toast('Dinas manual tersimpan', 'success');
+                } else {
+                    window.toast(data.message || 'Gagal menyimpan', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+            this.saving = false;
         },
 
         async saveSpj() {
@@ -1438,6 +1662,7 @@ document.addEventListener('alpine:init', () => {
                     user_id: this.userId,
                     tanggal: this.tanggal,
                     kegiatan_id: kegiatanId,
+                    manual_label: null,
                     keterangan: null,
                 });
                 const data = await res.json();
@@ -1446,6 +1671,8 @@ document.addEventListener('alpine:init', () => {
                     this.kode         = data.data.kode;
                     this.warna        = data.data.warna;
                     this.kegiatanNama = kegiatanNama;
+                    this.isManual     = false;
+                    this.manualLabel  = '';
                     // Kegiatan baru → SPJ reset
                     this.spjChecked       = false;
                     this.spjCatatan       = '';
@@ -1459,6 +1686,8 @@ document.addEventListener('alpine:init', () => {
                         kode: this.kode,
                         warna: this.warna,
                         kegiatanNama: this.kegiatanNama,
+                        isManual: false,
+                        manualLabel: '',
                         spjChecked: false,
                         spjCatatan: '',
                         spjCheckedByName: '',
@@ -1492,6 +1721,8 @@ document.addEventListener('alpine:init', () => {
                         kode: '',
                         warna: '',
                         kegiatanNama: '',
+                        isManual: false,
+                        manualLabel: '',
                         spjChecked: false,
                         spjCatatan: '',
                         spjCheckedByName: '',
