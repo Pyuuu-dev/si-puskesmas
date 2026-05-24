@@ -144,6 +144,17 @@
                 Matriks Dinas
             </a>
 
+            {{-- Arsip Group --}}
+            <p class="px-3 mt-4 mb-2 text-xs font-semibold tracking-wider text-indigo-300 uppercase">Arsip</p>
+
+            <a href="{{ route('arsip.index') }}"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('arsip.*') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
+                <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                </svg>
+                Arsip Link
+            </a>
+
             {{-- Master Group --}}
             @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
             <p class="px-3 mt-4 mb-2 text-xs font-semibold tracking-wider text-indigo-300 uppercase">Master</p>

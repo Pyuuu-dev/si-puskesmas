@@ -1,0 +1,156 @@
+@php
+    $isAdmin = in_array(auth()->user()->role, ['super_admin', 'kepala'], true);
+    $iconPreset = \App\Services\Arsip\LinkIconService::get($link->icon_preset);
+    $editPayload = [
+        'id'          => $link->id,
+        'folder_id'   => $link->folder_id,
+        'url'         => $link->url,
+        'title'       => $link->title,
+        'notes'       => $link->notes,
+        'icon_preset' => $link->icon_preset,
+        'is_favorite' => (bool) $link->is_favorite,
+        'is_pinned'   => (bool) $link->is_pinned,
+        'tags'        => $link->tags->pluck('name')->all(),
+    ];
+
+    // Status visual: pinned > favorite > normal
+    $cardAccent = $link->is_pinned
+        ? 'border-rose-200 bg-rose-50/30 ring-1 ring-rose-100'
+        : ($link->is_favorite
+            ? 'border-amber-200 bg-amber-50/20'
+            : 'border-gray-200');
+
+    // Folder badge tampil saat: di luar folder context (Beranda) ATAU saat ada filter/search
+    $hasFilter = ($filters['filter'] ?? null) || ($filters['search'] ?? '') !== '' || ($filters['tag'] ?? null);
+    $showFolderBadge = ($hasFilter || !$currentFolder) && $link->folder;
+@endphp
+
+<article class="arsip-card group bg-white rounded-xl border hover:border-indigo-300 hover:shadow-md transition-all overflow-hidden flex flex-col {{ $cardAccent }}">
+    {{-- Thumbnail / preset icon hero --}}
+    <a href="{{ route('arsip.link.go', $link) }}" target="_blank" rel="noopener"
+       class="block arsip-card-thumb relative overflow-hidden">
+        @if($iconPreset)
+            {{-- Preset icon hero (besar, di tengah, branded color bg) --}}
+            <div class="absolute inset-0 flex items-center justify-center {{ $iconPreset['bg'] }}">
+                <div class="w-16 h-16 text-white">
+                    {!! $iconPreset['svg'] !!}
+                </div>
+            </div>
+        @elseif($link->thumbnail_url)
+            <img src="{{ $link->thumbnail_url }}" alt=""
+                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                 loading="lazy"
+                 onerror="this.parentElement.classList.add('arsip-no-thumb');this.style.display='none'">
+        @else
+            <div class="absolute inset-0 flex items-center justify-center text-gray-300">
+                <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
+                </svg>
+            </div>
+        @endif
+
+        @if($link->is_pinned)
+            <span class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-rose-500/90 backdrop-blur-sm text-white text-[10px] font-medium flex items-center gap-1 shadow-sm">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 3v1h5.2v6h1.6v-6H18v-1l-2-3z"/></svg>
+                Pinned
+            </span>
+        @endif
+
+        @if($link->is_favorite)
+            <span class="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-400 backdrop-blur-sm flex items-center justify-center shadow-sm" title="Favorit">
+                <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 0 0 .95.69h4.17c.969 0 1.371 1.24.588 1.81l-3.374 2.451a1 1 0 0 0-.364 1.118l1.287 3.966c.3.922-.755 1.688-1.54 1.118l-3.373-2.45a1 1 0 0 0-1.176 0l-3.373 2.45c-.785.57-1.84-.196-1.54-1.118l1.287-3.966a1 1 0 0 0-.364-1.118L2.04 9.394c-.783-.57-.38-1.81.588-1.81h4.17a1 1 0 0 0 .95-.69l1.287-3.967z"/></svg>
+            </span>
+        @endif
+
+        @if($link->meta_status === 'failed')
+            <span class="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-[10px] font-medium" title="Metadata gagal di-fetch">⚠ meta</span>
+        @endif
+    </a>
+
+    {{-- Body --}}
+    <div class="p-4 flex-1 flex flex-col">
+        <div class="flex items-start gap-2 mb-1.5">
+            @if($link->favicon_url)
+                <img src="{{ $link->favicon_url }}" alt="" class="w-4 h-4 mt-0.5 rounded shrink-0" loading="lazy" onerror="this.style.display='none'">
+            @else
+                <div class="w-4 h-4 mt-0.5 rounded bg-gradient-to-br from-indigo-300 to-blue-300 shrink-0"></div>
+            @endif
+            <h4 class="text-sm font-semibold leading-snug arsip-line-clamp-2 flex-1">{{ $link->title }}</h4>
+        </div>
+        <p class="text-xs arsip-text-muted text-gray-500 truncate" title="{{ $link->url }}">{{ $link->host }}</p>
+
+        @if($link->notes)
+            <p class="mt-2 text-xs arsip-text-muted text-gray-500 arsip-line-clamp-2">{{ $link->notes }}</p>
+        @endif
+
+        @if($link->tags->count())
+            <div class="mt-2 flex flex-wrap gap-1">
+                @foreach($link->tags as $t)
+                    <a href="{{ route('arsip.index', ['tag' => $t->slug]) }}"
+                       class="arsip-tag-chip text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+                        #{{ $t->name }}
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
+        @if($showFolderBadge)
+            <p class="mt-2 text-[11px] arsip-text-muted text-gray-400 truncate">
+                <svg class="w-3 h-3 inline -mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"/></svg>
+                <a href="{{ route('arsip.folder', $link->folder->id) }}" class="hover:text-indigo-600">{{ $link->folder->name }}</a>
+            </p>
+        @endif
+
+        <div class="mt-auto pt-3 flex items-center justify-between text-xs arsip-text-muted text-gray-400">
+            <span class="flex items-center gap-1" title="Dibuka {{ $link->open_count }}x">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                {{ $link->open_count }}
+            </span>
+
+            <div class="flex items-center gap-0.5">
+                <button type="button"
+                        @click="toggleFavorite({{ $link->id }}, $event.currentTarget)"
+                        data-fav="{{ $link->is_favorite ? '1' : '0' }}"
+                        class="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                        title="Favorit">
+                    <svg class="w-4 h-4" :class="$el.dataset.fav === '1' ? 'text-amber-500 fill-current' : 'text-gray-400'" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"/>
+                    </svg>
+                </button>
+
+                @if($isAdmin)
+                    <button type="button"
+                            @click="togglePin({{ $link->id }})"
+                            class="p-1.5 rounded transition-colors {{ $link->is_pinned ? 'bg-rose-100 text-rose-600 hover:bg-rose-200' : 'hover:bg-gray-100 text-gray-400' }}"
+                            title="{{ $link->is_pinned ? 'Lepas sematan' : 'Sematkan' }}">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 3v1h5.2v6h1.6v-6H18v-1l-2-3z"/></svg>
+                    </button>
+
+                    <button type="button"
+                            @click='openEditLink(@json($editPayload))'
+                            class="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                            title="Edit">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487zm0 0L19.5 7.125"/></svg>
+                    </button>
+
+                    <form method="POST" action="{{ route('arsip.link.refetch', $link) }}" class="inline"
+                          @submit="markTreeReopenIfOpen()">
+                        @csrf
+                        <button type="submit" class="p-1.5 rounded hover:bg-gray-100 text-gray-500 transition-colors" title="Refresh metadata">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356M19.95 15.3a8.25 8.25 0 1 1-2.063-7.527"/></svg>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ route('arsip.link.destroy', $link) }}" class="inline"
+                          @submit="if (!confirm('Hapus link ini?')) { $event.preventDefault(); return; } markTreeReopenIfOpen();">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="p-1.5 rounded hover:bg-red-50 text-red-500 transition-colors" title="Hapus">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79"/></svg>
+                        </button>
+                    </form>
+                @endif
+            </div>
+        </div>
+    </div>
+</article>

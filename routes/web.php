@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\AbsensiController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\ArsipFolderController;
+use App\Http\Controllers\ArsipLinkController;
+use App\Http\Controllers\ArsipTagController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KodeKegiatanController;
@@ -222,4 +225,43 @@ Route::middleware('auth')->group(function () {
     Route::post('/log-aktivitas/prune', [ActivityLogController::class, 'prune'])
         ->middleware('role:super_admin')
         ->name('log-aktivitas.prune');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Arsip Link / Bookmark Manager
+    |--------------------------------------------------------------------------
+    | Library link bersama institusi. View untuk semua user login;
+    | CUD untuk super_admin & kepala. Track open boleh untuk semua.
+    */
+    Route::prefix('arsip')->name('arsip.')->group(function () {
+
+        // View & navigasi (semua user login)
+        Route::get('/',                [ArsipFolderController::class, 'index'])->name('index');
+        Route::get('/folder/{folder}', [ArsipFolderController::class, 'index'])->name('folder');
+        Route::get('/search',          [ArsipLinkController::class, 'search'])->name('search');
+        Route::get('/link/{link}/go',  [ArsipLinkController::class, 'go'])->name('link.go');
+
+        // Aksi level user (toggle favorite untuk semua)
+        Route::post('/link/{link}/favorite', [ArsipLinkController::class, 'toggleFavorite'])
+            ->name('link.favorite');
+
+        // Admin-only (super_admin / kepala)
+        Route::middleware('role:super_admin,kepala')->group(function () {
+            // Folder
+            Route::post('/folder',            [ArsipFolderController::class, 'store'])->name('folder.store');
+            Route::put('/folder/{folder}',    [ArsipFolderController::class, 'update'])->name('folder.update');
+            Route::delete('/folder/{folder}', [ArsipFolderController::class, 'destroy'])->name('folder.destroy');
+            Route::post('/folder/move',       [ArsipFolderController::class, 'move'])->name('folder.move');
+
+            // Link
+            Route::post('/link',                [ArsipLinkController::class, 'store'])->name('link.store');
+            Route::put('/link/{link}',          [ArsipLinkController::class, 'update'])->name('link.update');
+            Route::delete('/link/{link}',       [ArsipLinkController::class, 'destroy'])->name('link.destroy');
+            Route::post('/link/{link}/pin',     [ArsipLinkController::class, 'togglePin'])->name('link.pin');
+            Route::post('/link/{link}/refetch', [ArsipLinkController::class, 'refetch'])->name('link.refetch');
+
+            // Tag
+            Route::delete('/tag/{tag}', [ArsipTagController::class, 'destroy'])->name('tag.destroy');
+        });
+    });
 });
