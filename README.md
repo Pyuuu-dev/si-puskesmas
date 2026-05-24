@@ -61,17 +61,21 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ **Buka blokir**: per orang atau seluruh tanggal sekaligus
 - ✅ Sel hitam = tidak tersedia (diblokir admin)
 - ✅ Tombol shortcut "Versi Publik" → buka halaman publik di tab baru
+- ✅ **Filter pegawai search-based** + multi-select chips (Alpine reactive)
+- ✅ **Row Kepala** di matriks dinas dengan info absensi (izin/sakit/cuti/dll) + edit keterangan inline
+- ✅ **Snapshot tarif per hari** per record (data lama tetap pakai tarif saat dibuat)
 - ✅ Kelola lokasi posyandu per tanggal
 
 ### 8. Halaman Publik Perjalanan Dinas
 - ✅ Akses tanpa login: `/perjalanan-dinas-publik`
+- ✅ **Matrix view**: per pegawai per tanggal (mengikuti tampilan halaman admin, tanpa edit)
 - ✅ Summary cards: total dinas, pegawai sudah/belum dinas, tanggal terisi
+- ✅ Sel kode kegiatan dengan warna menu + indikator SPJ sudah diperiksa
+- ✅ Sel ketidakhadiran (izin/sakit/cuti/dinas luar/dll) dari data absensi
+- ✅ Sel hitam = sel dinas yang diblokir admin (per orang/per tanggal)
+- ✅ Row khusus Kepala dengan status absensi
 - ✅ **Tanggal tidak tersedia**: hari Minggu + hari libur nasional (dengan keterangan)
-- ✅ **Tabel ketersediaan**: semua tanggal dengan status Tersedia / Terisi / Libur / Minggu
-- ✅ Sel "Terisi" menampilkan nama pegawai + kode kegiatan
-- ✅ Kartu pegawai sudah dinas + tanggal-tanggal mereka dinas
-- ✅ Daftar pegawai belum dinas
-- ✅ Rekap lengkap per pegawai dengan badge tanggal
+- ✅ Daftar pegawai belum dinas + rekap per pegawai
 
 ### 9. Kalender Publik
 - ✅ Tampilan kalender kegiatan bulanan
@@ -96,6 +100,7 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ Upload logo instansi
 - ✅ Konfigurasi jam kerja per hari (Senin–Sabtu)
 - ✅ Konversi jam masuk/pulang per penempatan (Induk/Desa)
+- ✅ **Tarif perjalanan dinas per orang per hari** (default Rp 80.000, dipakai sebagai pengurang otomatis pagu kegiatan)
 - ✅ Konfigurasi Telegram bot (token, chat ID)
 - ✅ Jadwal backup otomatis (3 waktu konfigurabel)
 
@@ -126,6 +131,32 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ Modal detail JSON untuk inspeksi payload
 - ✅ Tombol manual bersihkan log lama dengan threshold konfigurabel
 - ✅ Command `activity-log:prune` dijadwalkan harian jam 02:00 (retention default 180 hari)
+
+### 16. Arsip Link / Bookmark Manager
+- ✅ Library link bersama institusi (akses untuk semua user login)
+- ✅ **Folder hierarki** (parent-child) dengan tree sidebar
+- ✅ **Tag** per link (multi-tag, filter by tag)
+- ✅ **Favorit per user** + **pin** (admin only) untuk tampil di halaman home
+- ✅ **Search** lintas folder dengan omnibar
+- ✅ **Drag-drop** folder & link (SortableJS) untuk reordering/move
+- ✅ **Custom icon preset** + auto-fetch metadata (title, favicon, deskripsi) saat tambah link
+- ✅ **Track open**: setiap klik link tercatat (popularitas)
+- ✅ **Dark mode** scoped per halaman arsip
+- ✅ Akses CUD: super_admin & kepala. View + favorite + track: semua user login
+
+### 17. Tracking Anggaran Perjalanan Dinas
+- ✅ **Tarif per hari** (default Rp 80.000) dapat diubah via pengaturan
+- ✅ Snapshot tarif per record saat create (data lama tetap pakai tarif saat dibuat — preserve histori)
+- ✅ **Badge pagu/terpakai/sisa/over** per kegiatan, rincian menu, dan menu di halaman Kode Kegiatan
+- ✅ Modal "Lihat Pemakai Kode": kartu pagu tahunan dengan persentase terpakai + breakdown per pegawai dengan subtotal
+- ✅ Akumulasi terpakai dihitung per tahun anggaran berjalan
+
+### 18. SPJ Perjalanan Dinas
+- ✅ Tracking checklist SPJ per record dinas (sudah diperiksa / belum)
+- ✅ Catatan SPJ per record (max 255 karakter)
+- ✅ Audit: `spj_checked_by` (user id) + `spj_checked_at` (timestamp)
+- ✅ Status SPJ tampil di matriks admin dan halaman publik (indikator visual)
+- ✅ Toggle periksa/batal periksa via modal (super_admin & kepala only)
 
 ---
 
@@ -232,7 +263,7 @@ Akses di `http://localhost:8000`
 |---|---|
 | `users` | Data pegawai + role + urutan + status_kepegawaian |
 | `absensi` | Absensi harian (slot: pagi/sore, keterangan: tidak_apel) |
-| `perjalanan_dinas` | Perjalanan dinas per pegawai per tanggal |
+| `perjalanan_dinas` | Perjalanan dinas per pegawai per tanggal + tarif_per_hari + spj_* (audit) |
 | `jam_kerja` | Jam kerja + konversi per hari (Senin–Sabtu) |
 | `tanggal_libur` | Hari libur nasional + keterangan |
 | `info_tanggal` | Info lokasi posyandu per tanggal |
@@ -246,6 +277,10 @@ Akses di `http://localhost:8000`
 | `surat_izin` | Surat izin pegawai dengan file lampiran |
 | `rekap_manual` | Rekap manual ketidakhadiran per pegawai per bulan |
 | `activity_logs` | Log aktivitas user (audit trail) |
+| `arsip_folders` | Folder hierarki untuk modul Arsip Link |
+| `arsip_links` | Link bookmark dengan icon preset, pin, favorit, count open |
+| `arsip_tags` | Tag link bookmark |
+| `arsip_link_tag` | Pivot link ↔ tag (many-to-many) |
 
 ### Struktur Absensi
 
@@ -356,6 +391,15 @@ Diurutkan berdasarkan field `urutan` (ascending), lalu nama (A-Z):
 ---
 
 ## 🔄 Changelog
+
+### v2.4 (Mei 2026)
+- **Modul Arsip Link**: bookmark manager dengan folder hierarki, tag, favorit per user, pin admin, search, drag-drop, dark mode
+- **Tracking anggaran perjalanan dinas**: tarif konfigurabel via pengaturan (default Rp 80.000), snapshot per record, badge pagu/terpakai/sisa di Kode Kegiatan
+- **Modal pemakai kode kegiatan diperluas**: kartu pagu tahunan dengan persentase terpakai + breakdown per pegawai dengan subtotal
+- **SPJ perjalanan dinas**: tracking checklist SPJ per record dengan catatan + audit (`spj_checked_by`, `spj_checked_at`)
+- **Filter pegawai search-based**: dropdown multi-select dengan search + chips reactive (ganti dari checkbox biasa)
+- **Row Kepala di matriks dinas**: info absensi kepala dengan edit keterangan inline
+- **Halaman publik dinas redesign**: matrix view per pegawai per tanggal (mengikuti halaman admin) + indikator SPJ + sel ketidakhadiran/blokir
 
 ### v2.3 (Mei 2026)
 - **Modul Surat Izin**: kelola surat izin pegawai (sakit, izin, cuti) dengan upload file (PDF/gambar) + preview, filter pegawai/status/tanggal
