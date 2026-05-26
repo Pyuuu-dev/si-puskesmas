@@ -1,6 +1,6 @@
 {{-- Recursive: $node = ['id','parent_id','name','slug','icon','color','depth','links_count','children'] --}}
 @php
-    $isAdmin = in_array(auth()->user()->role, ['super_admin', 'kepala'], true);
+    $isAdmin = auth()->user()->hasAnyPermission(['arsip.create', 'arsip.update', 'arsip.delete']);
     $isActive = ($currentFolder?->id ?? null) === $node['id'];
     $hasChildren = count($node['children']) > 0;
 @endphp

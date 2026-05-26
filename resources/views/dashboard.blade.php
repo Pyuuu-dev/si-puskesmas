@@ -97,6 +97,100 @@
         </div>
     </div>
 
+    {{-- ============================================================ --}}
+    {{-- ANALITIK: Top TA + Anggaran Dinas --}}
+    {{-- ============================================================ --}}
+
+    {{-- Top TA + Anggaran Dinas (grid 2 kolom) --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {{-- Top 5 Pegawai Tidak Apel --}}
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-900">Top 5 Tidak Apel (Bulan Ini)</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Hadir tapi tidak ikut apel pagi/siang</p>
+                </div>
+                @if(count($topTA) > 0)
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                    {{ array_sum(array_column($topTA, 'total')) }} TA
+                </span>
+                @endif
+            </div>
+            @if(count($topTA) > 0)
+                <div class="relative" style="height:240px">
+                    <canvas id="chartTopTA"></canvas>
+                </div>
+                <div class="mt-3 flex items-center gap-4 text-[10px] text-gray-500">
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-gray-400"></span>TA Pagi</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-gray-700"></span>TA Siang</span>
+                </div>
+            @else
+                <div class="flex flex-col items-center justify-center py-12 text-center">
+                    <svg class="w-12 h-12 text-green-400 mb-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                    <p class="text-sm font-medium text-green-600">Tidak ada pelanggaran TA bulan ini</p>
+                    <p class="text-xs text-gray-400 mt-1">Semua pegawai tertib mengikuti apel</p>
+                </div>
+            @endif
+        </div>
+
+        {{-- Progress Anggaran Dinas per Menu BOK --}}
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-900">Progress Anggaran Dinas {{ $tahunIni }}</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Pemakaian tarif per menu BOK (terpakai vs pagu)</p>
+                </div>
+                <a href="{{ route('kode-kegiatan') }}" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">Detail &rarr;</a>
+            </div>
+
+            @if(count($anggaranMenu) > 0)
+                <div class="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                    @foreach($anggaranMenu as $am)
+                        @php
+                            $persen = $am['persen'];
+                            if ($persen > 100)      $barColor = 'bg-red-500';
+                            elseif ($persen >= 90)  $barColor = 'bg-orange-500';
+                            elseif ($persen >= 70)  $barColor = 'bg-yellow-500';
+                            else                    $barColor = 'bg-green-500';
+                            $barWidth = min(100, $persen);
+                        @endphp
+                        <div>
+                            <div class="flex items-center justify-between mb-1 gap-2">
+                                <span class="text-xs font-medium text-gray-700 truncate" title="{{ $am['nama'] }}">{{ $am['nama'] }}</span>
+                                <span class="text-[10px] font-mono text-gray-500 shrink-0">{{ number_format($persen, 1) }}%</span>
+                            </div>
+                            <div class="relative h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="absolute inset-y-0 left-0 {{ $barColor }} transition-all" style="width:{{ $barWidth }}%"></div>
+                            </div>
+                            <div class="flex items-center justify-between mt-1 text-[10px] text-gray-500">
+                                <span>Rp {{ number_format($am['terpakai'], 0, ',', '.') }}</span>
+                                <span>/ Rp {{ number_format($am['pagu'], 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-gray-100 flex items-center gap-3 text-[10px] text-gray-500">
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-500"></span>≤70%</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-yellow-500"></span>70-90%</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-orange-500"></span>90-100%</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-500"></span>Over</span>
+                </div>
+            @else
+                <div class="flex flex-col items-center justify-center py-12 text-center">
+                    <svg class="w-12 h-12 text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+                    </svg>
+                    <p class="text-sm text-gray-500">Belum ada data anggaran</p>
+                    <p class="text-xs text-gray-400 mt-1">Tambahkan kegiatan & anggaran di menu Kode Kegiatan</p>
+                </div>
+            @endif
+        </div>
+    </div>
+
     {{-- Quick Links --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {{-- Belum Absen Hari Ini --}}
@@ -221,15 +315,15 @@
                     </svg>
                     <span class="text-sm font-medium text-blue-700">Perjalanan Dinas</span>
                 </a>
-                @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+                @can('pegawai.view')
                 <a href="{{ route('pegawai') }}" class="flex flex-col items-center gap-2 p-4 rounded-xl bg-green-50 hover:bg-green-100 transition-colors group">
                     <svg class="w-8 h-8 text-green-600 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
                     </svg>
                     <span class="text-sm font-medium text-green-700">Kelola Pegawai</span>
                 </a>
-                @endif
-                @if(auth()->user()->role === 'super_admin')
+                @endcan
+                @can('settings.view')
                 <a href="{{ route('settings') }}" class="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group">
                     <svg class="w-8 h-8 text-gray-600 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
@@ -237,9 +331,101 @@
                     </svg>
                     <span class="text-sm font-medium text-gray-700">Pengaturan</span>
                 </a>
-                @endif
+                @endcan
             </div>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const taData = @json($topTA);
+
+    function initCharts() {
+        if (typeof Chart === 'undefined') {
+            // Chart.js belum siap, retry sebentar
+            setTimeout(initCharts, 200);
+            return;
+        }
+
+        Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+        Chart.defaults.font.size = 11;
+        Chart.defaults.color = '#6b7280';
+
+        // ===== TOP 5 TIDAK APEL =====
+        const ctxTA = document.getElementById('chartTopTA');
+        if (ctxTA && taData.length) {
+            new Chart(ctxTA, {
+                type: 'bar',
+                data: {
+                    labels: taData.map(d => d.nama),
+                    datasets: [
+                        {
+                            label: 'TA Pagi',
+                            data: taData.map(d => d.pagi),
+                            backgroundColor: '#9ca3af',
+                            borderRadius: 4,
+                            barPercentage: 0.7,
+                        },
+                        {
+                            label: 'TA Siang',
+                            data: taData.map(d => d.siang),
+                            backgroundColor: '#374151',
+                            borderRadius: 4,
+                            barPercentage: 0.7,
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#111827',
+                            padding: 10,
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.x}x`,
+                                footer: (items) => {
+                                    const idx = items[0].dataIndex;
+                                    return `Total: ${taData[idx].total}x`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: { color: '#f3f4f6' },
+                            ticks: { precision: 0, font: { size: 10 } }
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { display: false },
+                            ticks: {
+                                font: { size: 11 },
+                                callback: function (val) {
+                                    const lbl = this.getLabelForValue(val) || '';
+                                    return lbl.length > 18 ? lbl.slice(0, 17) + '…' : lbl;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCharts);
+    } else {
+        initCharts();
+    }
+})();
+</script>
+@endpush
+

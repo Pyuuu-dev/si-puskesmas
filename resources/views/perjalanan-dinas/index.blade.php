@@ -162,7 +162,7 @@
                             <template x-if="!editing">
                                 <span class="flex items-center gap-1.5 flex-1 min-w-0">
                                     <span class="text-amber-900 truncate" x-text="value || '(tidak ada keterangan)'" :class="!value ? 'italic text-amber-600' : ''"></span>
-                                    @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+                                    @if(auth()->user()->can('perjalanan-dinas.kepala-keterangan'))
                                     <button type="button" @click="editing = true" class="text-amber-700 hover:text-amber-900 shrink-0" title="Edit keterangan">
                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
                                     </button>
@@ -291,7 +291,7 @@
                                         'ijin_belajar' => 'IB',
                                         'alfa' => 'TH',
                                     ];
-                                    $isAdmin = in_array(auth()->user()->role, ['super_admin', 'kepala']);
+                                    $isAdmin = auth()->user()->hasAnyPermission(['perjalanan-dinas.blokir', 'perjalanan-dinas.spj', 'perjalanan-dinas.kepala-keterangan']);
                                     $colTint = $isKepalaAbsenCol ? 'bg-amber-50/60' : ($date['is_weekend'] ? 'bg-red-50/50' : '');
                                 @endphp
 
@@ -423,7 +423,7 @@
     @endif
 
     {{-- Info Lokasi Posyandu (for admin) --}}
-    @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+    @if(auth()->user()->hasAnyPermission(['tanggal-libur.create', 'tanggal-libur.delete']))
     <div class="bg-white rounded-xl border border-gray-200 p-4" x-data="dateManager()">
         <h3 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
             <svg class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg>
@@ -584,7 +584,7 @@
             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             Hapus Dinas
         </button>
-        @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+        @if(auth()->user()->can('perjalanan-dinas.blokir'))
         <button x-show="isAdmin" @click="blokirCurrent()"
                 class="w-full px-3 py-1.5 text-left text-xs font-medium text-gray-900 bg-white border border-gray-300 hover:bg-gray-50 flex items-center gap-2 transition-colors">
             <svg class="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0 1 10 0v2a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2zm8-2v2H7V7a3 3 0 0 1 6 0z" clip-rule="evenodd"/></svg>
@@ -595,7 +595,7 @@
 </div>
 
 {{-- ===== MODAL SPJ (Checklist & Edit Kegiatan) ===== --}}
-@if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+@if(auth()->user()->can('perjalanan-dinas.spj'))
 <div x-data="spjModal()" @open-spj-modal.window="open($event.detail)">
     <div x-show="show"
          x-cloak
@@ -776,7 +776,7 @@
 @endif
 
 {{-- ===== MODAL BLOKIR/UNBLOKIR ===== --}}
-@if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+@if(auth()->user()->can('perjalanan-dinas.blokir'))
 <div x-data="blokirModal()" @open-blokir-modal.window="open($event.detail)">
     {{-- Backdrop + Modal --}}
     <div x-show="show"

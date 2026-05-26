@@ -245,9 +245,9 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Role <span class="text-red-500">*</span></label>
                             <select x-model="form.role" class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="pegawai">Pegawai</option>
-                                <option value="kepala">Kepala</option>
-                                <option value="super_admin">Super Admin</option>
+                                @foreach($roles as $r)
+                                <option value="{{ $r->name }}">{{ $r->display_name }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>

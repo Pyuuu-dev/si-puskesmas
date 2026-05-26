@@ -1,5 +1,5 @@
 @php
-    $isAdmin = in_array(auth()->user()->role, ['super_admin', 'kepala'], true);
+    $isAdmin = auth()->user()->hasAnyPermission(['arsip.create', 'arsip.update', 'arsip.delete']);
     $iconPreset = \App\Services\Arsip\LinkIconService::get($link->icon_preset);
     $editPayload = [
         'id'          => $link->id,

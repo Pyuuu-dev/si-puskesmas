@@ -13,7 +13,15 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <style>[x-cloak]{display:none!important}</style>
+    <style>
+        [x-cloak]{display:none!important}
+        /* Custom scrollbar untuk sidebar gelap */
+        aside nav::-webkit-scrollbar { width: 6px; }
+        aside nav::-webkit-scrollbar-track { background: transparent; }
+        aside nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+        aside nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+        aside nav { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
+    </style>
     @stack('styles')
 </head>
 <body class="h-full font-[Inter] antialiased bg-gray-50" x-data="{ sidebarOpen: false }">
@@ -35,7 +43,7 @@
     {{-- Sidebar --}}
     <aside
         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-        class="fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-indigo-900 via-indigo-800 to-blue-900 transform transition-transform duration-200 ease-in-out lg:translate-x-0"
+        class="fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-gradient-to-b from-indigo-900 via-indigo-800 to-blue-900 transform transition-transform duration-200 ease-in-out lg:translate-x-0"
     >
         {{-- Sidebar header --}}
         <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
@@ -65,6 +73,7 @@
         {{-- Navigation --}}
         <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             {{-- Dashboard --}}
+            @can('dashboard.view')
             <a href="{{ route('dashboard') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('dashboard') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -72,11 +81,15 @@
                 </svg>
                 Dashboard
             </a>
+            @endcan
 
             {{-- Absensi Group --}}
+            @if(auth()->user()->hasAnyPermission(['absensi.view','hasil-absensi.view','rekap.view','rekap-manual.view','surat-izin.view']))
             <p class="px-3 mt-4 mb-2 text-xs font-semibold tracking-wider text-indigo-300 uppercase">Absensi</p>
+            @endif
 
             {{-- Input Absensi --}}
+            @can('absensi.view')
             <a href="{{ route('absensi') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('absensi') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -84,8 +97,10 @@
                 </svg>
                 Input Absensi
             </a>
+            @endcan
 
             {{-- Hasil Absensi --}}
+            @can('hasil-absensi.view')
             <a href="{{ route('hasil-absensi') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('hasil-absensi') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -93,8 +108,10 @@
                 </svg>
                 Hasil Absensi
             </a>
+            @endcan
 
             {{-- Rekap Absensi --}}
+            @can('rekap.view')
             <a href="{{ route('rekap.absensi') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('rekap.absensi') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -102,8 +119,10 @@
                 </svg>
                 Rekap & Download
             </a>
+            @endcan
 
             {{-- Upload Rekap Manual --}}
+            @can('rekap-manual.view')
             <a href="{{ route('rekap-manual.index') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('rekap-manual.*') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -111,8 +130,10 @@
                 </svg>
                 Upload Rekap Manual
             </a>
+            @endcan
 
             {{-- Surat Izin & Sakit --}}
+            @can('surat-izin.view')
             <a href="{{ route('surat-izin.index') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('surat-izin.*') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -120,6 +141,7 @@
                 </svg>
                 Surat Izin & Sakit
             </a>
+            @endcan
 
             {{-- Rekap TL/PSW (hidden - not released yet) --}}
             {{-- 
@@ -133,6 +155,7 @@
             --}}
 
             {{-- Perjalanan Dinas Group --}}
+            @can('perjalanan-dinas.view')
             <p class="px-3 mt-4 mb-2 text-xs font-semibold tracking-wider text-indigo-300 uppercase">Perjalanan Dinas</p>
 
             {{-- Matriks Dinas --}}
@@ -143,8 +166,10 @@
                 </svg>
                 Matriks Dinas
             </a>
+            @endcan
 
             {{-- Arsip Group --}}
+            @can('arsip.view')
             <p class="px-3 mt-4 mb-2 text-xs font-semibold tracking-wider text-indigo-300 uppercase">Arsip</p>
 
             <a href="{{ route('arsip.index') }}"
@@ -154,12 +179,15 @@
                 </svg>
                 Arsip Link
             </a>
+            @endcan
 
             {{-- Master Group --}}
-            @if(in_array(auth()->user()->role, ['super_admin', 'kepala']))
+            @if(auth()->user()->hasAnyPermission(['pegawai.view','kode-kegiatan.view']))
             <p class="px-3 mt-4 mb-2 text-xs font-semibold tracking-wider text-indigo-300 uppercase">Master</p>
+            @endif
 
             {{-- Pegawai --}}
+            @can('pegawai.view')
             <a href="{{ route('pegawai') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('pegawai') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -167,9 +195,9 @@
                 </svg>
                 Pegawai
             </a>
-            @endif
+            @endcan
 
-            @if(auth()->user()->role === 'super_admin')
+            @can('kode-kegiatan.view')
             {{-- Kode Kegiatan --}}
             <a href="{{ route('kode-kegiatan') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('kode-kegiatan') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
@@ -179,8 +207,15 @@
                 </svg>
                 Kode Kegiatan BOK
             </a>
+            @endcan
+
+            {{-- Sistem Group --}}
+            @if(auth()->user()->hasAnyPermission(['settings.view','log-aktivitas.view','roles.view']))
+            <p class="px-3 mt-4 mb-2 text-xs font-semibold tracking-wider text-indigo-300 uppercase">Sistem</p>
+            @endif
 
             {{-- Settings --}}
+            @can('settings.view')
             <a href="{{ route('settings') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('settings') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -189,8 +224,21 @@
                 </svg>
                 Pengaturan
             </a>
+            @endcan
 
-            {{-- Log Aktivitas (super_admin only) --}}
+            {{-- Manajemen Role --}}
+            @can('roles.view')
+            <a href="{{ route('roles.index') }}"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('roles.*') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
+                <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                Manajemen Role
+            </a>
+            @endcan
+
+            {{-- Log Aktivitas --}}
+            @can('log-aktivitas.view')
             <a href="{{ route('log-aktivitas.index') }}"
                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('log-aktivitas.*') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-100 hover:bg-white/10 hover:text-white' }}">
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
@@ -198,7 +246,7 @@
                 </svg>
                 Log Aktivitas
             </a>
-            @endif
+            @endcan
         </nav>
 
         {{-- Sidebar footer / user info --}}
@@ -405,6 +453,9 @@
             }));
         });
     </script>
+
+    {{-- Chart.js (CDN) — dipakai di dashboard & rekap absensi --}}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 
     @yield('scripts')
     @stack('scripts')

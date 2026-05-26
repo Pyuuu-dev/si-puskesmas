@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $canManage = in_array(auth()->user()->role, ['super_admin', 'kepala']);
+    $canManage = auth()->user()->hasAnyPermission(['rekap-manual.create', 'rekap-manual.delete']);
     $bulanList = [
         1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
         5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',

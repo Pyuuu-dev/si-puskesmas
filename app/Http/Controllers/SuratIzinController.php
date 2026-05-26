@@ -31,7 +31,7 @@ class SuratIzinController extends Controller
         $openUpload = $request->boolean('open_upload', false);
 
         $authUser = auth()->user();
-        $isAdmin = in_array($authUser->role, ['super_admin', 'kepala']);
+        $isAdmin = $authUser->hasAnyPermission(['surat-izin.create', 'surat-izin.delete']);
 
         // Pegawai (untuk dropdown filter & form upload)
         $pegawai = User::where('role', '!=', 'super_admin')
@@ -308,7 +308,9 @@ class SuratIzinController extends Controller
     private function authorizeAccess(SuratIzin $item): void
     {
         $user = auth()->user();
-        if (in_array($user->role, ['super_admin', 'kepala'])) return;
+        // Boleh kalau punya akses kelola surat izin
+        if ($user->hasAnyPermission(['surat-izin.create', 'surat-izin.delete'])) return;
+        // Atau pemilik file sendiri
         if ((int) $item->user_id === (int) $user->id) return;
         abort(403, 'Anda tidak berhak mengakses file ini.');
     }

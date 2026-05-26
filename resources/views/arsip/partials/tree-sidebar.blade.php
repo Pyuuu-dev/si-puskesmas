@@ -1,6 +1,6 @@
 {{-- Tree drawer (slide-in panel kanan) --}}
 @php
-    $isAdmin = in_array(auth()->user()->role, ['super_admin', 'kepala'], true);
+    $isAdmin = auth()->user()->hasAnyPermission(['arsip.create', 'arsip.update', 'arsip.delete']);
 @endphp
 
 <div class="px-4 py-4 border-b border-gray-200 arsip-divider flex items-center justify-between shrink-0">

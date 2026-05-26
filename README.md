@@ -10,7 +10,7 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ Pagination (20 per halaman)
 - ✅ Sorting manual via field `urutan`
 - ✅ Status kepegawaian: PNS, PPPK, PPPK Paruh Waktu, PTT, Lainnya
-- ✅ Role-based access (super_admin, kepala, pegawai)
+- ✅ Role-based access dinamic via permission middleware (lihat modul Manajemen Role)
 
 ### 2. Absensi Harian
 - ✅ **Input 1 klik per hari per pegawai** (bukan per slot)
@@ -158,6 +158,24 @@ Sistem Informasi Manajemen Puskesmas untuk mengelola absensi pegawai, perjalanan
 - ✅ Status SPJ tampil di matriks admin dan halaman publik (indikator visual)
 - ✅ Toggle periksa/batal periksa via modal (super_admin & kepala only)
 
+### 19. Manajemen Role & Permission (RBAC Dinamis)
+- ✅ Tabel `roles`, `permissions`, `role_permission` dengan seeder lengkap
+- ✅ Role default: `super_admin`, `kepala`, `pegawai` (dapat dikelola lewat UI `/roles`)
+- ✅ Tambah/edit/hapus role custom (super_admin only)
+- ✅ Halaman edit permission per role dengan grouping per modul (centang batch)
+- ✅ Middleware `permission:<key>` di semua route sensitif (menggantikan `role:`)
+- ✅ Helper di `User`: `hasPermission()`, `hasAnyPermission()` dengan caching per request
+- ✅ Blade gate `@can('<key>')` aktif via `Gate::before` global
+- ✅ Sidebar otomatis menyembunyikan menu yang tidak diizinkan untuk user tersebut
+- ✅ Super admin selalu lolos semua permission check
+
+### 20. Dashboard Analitik
+- ✅ Statistik kehadiran bulan berjalan (H/I/S/CB/CT/DL/IB/TK)
+- ✅ **Top 5 Tidak Apel** — chart bar pegawai dengan TA terbanyak (pagi vs siang)
+- ✅ **Progress Anggaran Dinas per Menu BOK** — bar pagu/terpakai/sisa per menu
+- ✅ Aktivitas terbaru (audit trail singkat)
+- ✅ Empty state ramah ketika belum ada pelanggaran/dinas
+
 ---
 
 ## 🛠️ Tech Stack
@@ -281,6 +299,9 @@ Akses di `http://localhost:8000`
 | `arsip_links` | Link bookmark dengan icon preset, pin, favorit, count open |
 | `arsip_tags` | Tag link bookmark |
 | `arsip_link_tag` | Pivot link ↔ tag (many-to-many) |
+| `roles` | Daftar role dinamis (name, label, deskripsi) |
+| `permissions` | Daftar permission key per modul |
+| `role_permission` | Pivot role ↔ permission (many-to-many) |
 
 ### Struktur Absensi
 
@@ -391,6 +412,14 @@ Diurutkan berdasarkan field `urutan` (ascending), lalu nama (A-Z):
 ---
 
 ## 🔄 Changelog
+
+### v2.5 (Mei 2026)
+- **RBAC dinamis (Manajemen Role & Permission)**: tabel `roles`, `permissions`, `role_permission` + seeder; halaman `/roles` untuk CRUD role + assign permission per modul
+- **Permission middleware** (`permission:<key>`) menggantikan `role:` di semua route sensitif (dashboard, absensi, perjalanan dinas, pegawai, kode kegiatan, settings, log aktivitas, arsip, surat izin, rekap manual)
+- **Helper user**: `hasPermission()` dan `hasAnyPermission()` dengan caching per request, blade `@can('<key>')` aktif via `Gate::before`
+- **Sidebar adaptif**: menu otomatis disembunyikan jika user tidak punya permission terkait
+- **Dashboard analitik**: chart Top 5 Tidak Apel (TA pagi vs siang) + Progress Anggaran Dinas per Menu BOK + aktivitas terbaru
+- **Fix sidebar tidak bisa di-scroll**: `<aside>` jadi flex container vertikal, scrollbar custom tipis di area nav saat menu melebihi tinggi layar
 
 ### v2.4 (Mei 2026)
 - **Modul Arsip Link**: bookmark manager dengan folder hierarki, tag, favorit per user, pin admin, search, drag-drop, dark mode

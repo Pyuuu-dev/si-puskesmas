@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
@@ -28,7 +29,11 @@ class PegawaiController extends Controller
             ->paginate(20)
             ->withQueryString();
         
-        return view('pegawai.index', compact('pegawai', 'search'));
+        return view('pegawai.index', [
+            'pegawai' => $pegawai,
+            'search'  => $search,
+            'roles'   => Role::orderBy('is_system', 'desc')->orderBy('display_name')->get(['name', 'display_name']),
+        ]);
     }
 
     public function store(Request $request)
@@ -43,7 +48,7 @@ class PegawaiController extends Controller
             'unit_kerja' => 'nullable|string|max:255',
             'penempatan' => 'required|in:induk,desa',
             'email' => 'required|email|unique:users,email',
-            'role' => 'required|in:super_admin,kepala,pegawai',
+            'role' => 'required|exists:roles,name',
             'is_user' => 'required|boolean',
             'password' => 'required_if:is_user,true|nullable|string|min:6',
         ]);
@@ -85,7 +90,7 @@ class PegawaiController extends Controller
             'unit_kerja' => 'nullable|string|max:255',
             'penempatan' => 'required|in:induk,desa',
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
-            'role' => 'required|in:super_admin,kepala,pegawai',
+            'role' => 'required|exists:roles,name',
             'is_user' => 'required|boolean',
             'password' => 'nullable|string|min:6',
         ]);
@@ -243,7 +248,8 @@ class PegawaiController extends Controller
             $password = trim($data[8] ?? 'password');
             $role = strtolower(trim($data[9] ?? 'pegawai'));
 
-            if (!in_array($role, ['super_admin', 'kepala', 'pegawai'])) {
+            // Pastikan role yang di-import valid (ada di tabel roles)
+            if (!\App\Models\Role::where('name', $role)->exists()) {
                 $role = 'pegawai';
             }
 

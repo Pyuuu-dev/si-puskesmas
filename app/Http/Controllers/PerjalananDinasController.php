@@ -500,7 +500,7 @@ class PerjalananDinasController extends Controller
     public function toggleSpj(Request $request)
     {
         // Permission gate
-        if (!in_array(auth()->user()->role, ['super_admin', 'kepala'])) {
+        if (!auth()->user()->can('perjalanan-dinas.spj')) {
             abort(403, 'Tidak diizinkan');
         }
 
@@ -576,7 +576,7 @@ class PerjalananDinasController extends Controller
     public function updateKepalaKeterangan(Request $request)
     {
         // Permission gate
-        if (!in_array(auth()->user()->role, ['super_admin', 'kepala'])) {
+        if (!auth()->user()->can('perjalanan-dinas.kepala-keterangan')) {
             abort(403, 'Tidak diizinkan');
         }
 

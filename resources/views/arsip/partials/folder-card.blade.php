@@ -1,7 +1,7 @@
 {{-- Folder card untuk grid file-explorer style.
      Variabel: $folder (ArsipFolder dengan links_count loaded) --}}
 @php
-    $isAdmin = in_array(auth()->user()->role, ['super_admin', 'kepala'], true);
+    $isAdmin = auth()->user()->hasAnyPermission(['arsip.create', 'arsip.update', 'arsip.delete']);
     $color   = $folder->color ?: 'indigo';
     $editPayload = [
         'id'          => $folder->id,
