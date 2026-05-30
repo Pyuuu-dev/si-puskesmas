@@ -103,13 +103,20 @@
                             </td>
 
                             @foreach($dates as $date)
+                                @php
+                                    // Rekap dihitung per HARI (bukan per slot apel) — konsisten dengan halaman /rekap-absensi.
+                                    // Status pagi sebagai representasi harian, fallback ke sore bila pagi kosong.
+                                    $dayPagiStatus = $matrix[$p->id][$date['tanggal']]['pagi']['status'] ?? null;
+                                    $daySoreStatus = $matrix[$p->id][$date['tanggal']]['sore']['status'] ?? null;
+                                    $dayStatus = $dayPagiStatus ?: $daySoreStatus;
+                                    if ($dayStatus && isset($totals[$dayStatus])) $totals[$dayStatus]++;
+                                @endphp
                                 @foreach(['pagi', 'sore'] as $slot)
                                     @php
                                         $cellData = $matrix[$p->id][$date['tanggal']][$slot] ?? null;
                                         $status = $cellData['status'] ?? null;
                                         $jam = $cellData['jam'] ?? null;
                                         $keterangan = $cellData['keterangan'] ?? null;
-                                        if ($status && isset($totals[$status])) $totals[$status]++;
 
                                         // Deteksi Tidak Apel
                                         $isTidakApel = ($status === 'hadir' && $keterangan === 'tidak_apel');
