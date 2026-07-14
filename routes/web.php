@@ -74,6 +74,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/perjalanan-dinas', [PerjalananDinasController::class, 'index'])
         ->middleware('permission:perjalanan-dinas.view')
         ->name('perjalanan-dinas');
+    Route::get('/perjalanan-dinas/cetak', [PerjalananDinasController::class, 'cetak'])
+        ->middleware('permission:perjalanan-dinas.view')
+        ->name('perjalanan-dinas.cetak');
     Route::post('/perjalanan-dinas', [PerjalananDinasController::class, 'store'])
         ->middleware('permission:perjalanan-dinas.create')
         ->name('perjalanan-dinas.store');

@@ -615,4 +615,132 @@ class PerjalananDinasController extends Controller
             ],
         ]);
     }
+
+    public function cetak(Request $request)
+    {
+        // Reuse same logic as index()
+        $bulan = (int) $request->query('bulan', now()->month);
+        $tahun = (int) $request->query('tahun', now()->year);
+        $selectedPegawai = $request->query('pegawai', []);
+        if (!is_array($selectedPegawai)) {
+            $selectedPegawai = [];
+        }
+        $selectedPegawai = array_map('intval', $selectedPegawai);
+
+        $allPegawai = User::where('role', '!=', 'super_admin')
+            ->orderBy('urutan')
+            ->orderBy('name')
+            ->get();
+
+        if (!empty($selectedPegawai)) {
+            $pegawai = $allPegawai->whereIn('id', $selectedPegawai)->values();
+        } else {
+            $pegawai = $allPegawai;
+        }
+
+        $startDate = Carbon::createFromDate($tahun, $bulan, 1);
+        $daysInMonth = $startDate->daysInMonth;
+        $namaBulan = $startDate->locale('id')->isoFormat('MMMM YYYY');
+
+        $tanggalLibur = TanggalLibur::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->tanggal->format('Y-m-d');
+            });
+
+        $infoTanggalRaw = InfoTanggal::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->tanggal->format('Y-m-d');
+            });
+
+        $namaHariMap = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        $dates = [];
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $date = Carbon::createFromDate($tahun, $bulan, $d);
+            $dateStr = $date->format('Y-m-d');
+
+            $isLibur = $date->isSunday();
+            $keteranganLibur = null;
+
+            if (isset($tanggalLibur[$dateStr])) {
+                $libur = $tanggalLibur[$dateStr];
+                if ($libur->is_libur) {
+                    $isLibur = true;
+                    $keteranganLibur = $libur->keterangan;
+                }
+            }
+
+            $lokasiList = [];
+            if (isset($infoTanggalRaw[$dateStr])) {
+                foreach ($infoTanggalRaw[$dateStr] as $info) {
+                    if ($info->lokasi) {
+                        $lokasiList[] = $info->lokasi;
+                    }
+                }
+            }
+            $lokasi = !empty($lokasiList) ? implode(', ', $lokasiList) : null;
+
+            $dates[] = [
+                'tanggal' => $dateStr,
+                'hari' => $date->day,
+                'nama_hari' => $namaHariMap[$date->dayOfWeek],
+                'is_weekend' => $isLibur,
+                'keterangan_libur' => $keteranganLibur,
+                'lokasi' => $lokasi,
+            ];
+        }
+
+        $dinasData = PerjalananDinas::with(['kegiatan.rincianMenu.menuKegiatan'])
+            ->whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->get();
+
+        $matrix = [];
+        foreach ($dinasData as $record) {
+            $cell = null;
+
+            if ($record->kegiatan_id && $record->kegiatan) {
+                $kegiatan = $record->kegiatan;
+                $warna = $kegiatan->rincianMenu->menuKegiatan->warna ?? '#6B7280';
+                $cell = [
+                    'kode' => $kegiatan->kode ?? substr($kegiatan->nama, 0, 5),
+                    'warna' => $warna,
+                    'kegiatan_nama' => $kegiatan->nama,
+                ];
+            } elseif ($record->manual_label) {
+                $cell = [
+                    'kode' => $record->manual_label,
+                    'warna' => '#6B7280',
+                    'kegiatan_nama' => $record->manual_label,
+                ];
+            }
+
+            if ($cell) {
+                $matrix[$record->user_id][$record->tanggal->format('Y-m-d')] = $cell;
+            }
+        }
+
+        // Calculate total days per pegawai
+        $totalPerPegawai = [];
+        foreach ($pegawai as $p) {
+            $totalPerPegawai[$p->id] = isset($matrix[$p->id]) ? count($matrix[$p->id]) : 0;
+        }
+
+        $puskesmasName = Setting::where('key', 'nama_puskesmas')->value('value') ?? 'Puskesmas';
+
+        return view('perjalanan-dinas.cetak', compact(
+            'pegawai',
+            'dates',
+            'matrix',
+            'bulan',
+            'tahun',
+            'namaBulan',
+            'daysInMonth',
+            'totalPerPegawai',
+            'puskesmasName'
+        ));
+    }
 }
