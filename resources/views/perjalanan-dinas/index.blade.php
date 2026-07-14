@@ -212,7 +212,18 @@
                                         <div class="absolute inset-0 bg-indigo-100 opacity-0 group-hover:opacity-30 transition-opacity"></div>
                                     </div>
                                 @else
-                                    <div class="h-3"></div>
+                                    @can('tanggal-libur.create')
+                                    <div class="flex items-center justify-center h-20 group relative cursor-pointer" 
+                                         onclick="showLokasiModal('{{ $date['tanggal'] }}', [])"
+                                         title="Klik untuk tambah lokasi">
+                                        <svg class="w-3.5 h-3.5 text-gray-300 group-hover:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                        </svg>
+                                        <div class="absolute inset-0 bg-indigo-50 opacity-0 group-hover:opacity-40 transition-opacity"></div>
+                                    </div>
+                                    @else
+                                    <div class="h-20"></div>
+                                    @endcan
                                 @endif
                             </th>
                         @endforeach
@@ -422,38 +433,6 @@
     </div>
     @endif
 
-    {{-- Info Lokasi Posyandu (for admin) --}}
-    @if(auth()->user()->hasAnyPermission(['tanggal-libur.create', 'tanggal-libur.delete']))
-    <div class="bg-white rounded-xl border border-gray-200 p-4" x-data="dateManager()">
-        <h3 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg>
-            Info Lokasi Posyandu
-        </h3>
-        <div class="bg-gray-50 rounded-lg p-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Tanggal</label>
-                    <input type="date" x-model="infoTanggal" class="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Nama Lokasi Posyandu</label>
-                    <input type="text" x-model="infoLokasi" placeholder="cth: Posyandu Bina Atmaja 1" class="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Catatan (opsional)</label>
-                    <input type="text" x-model="infoCatatan" placeholder="Catatan tambahan" class="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500">
-                </div>
-                <div class="flex items-end">
-                    <button @click="saveInfo()" class="inline-flex items-center justify-center px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
-                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
-                        Simpan
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
-
     {{-- Modal Kelola Lokasi --}}
     <div x-data="lokasiModalManager()" x-show="showModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
         <div class="flex items-center justify-center min-h-screen px-4">
@@ -475,18 +454,90 @@
 
                 <div class="space-y-2 max-h-64 overflow-y-auto">
                     <template x-for="(lok, index) in lokasiList" :key="lok.id">
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <span class="text-sm text-gray-700 capitalize" x-text="lok.lokasi"></span>
-                            <button @click="deleteLokasi(lok.id)" :disabled="deleting" 
-                                    class="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                </svg>
-                            </button>
+                        <div class="p-3 bg-gray-50 rounded-lg transition-colors" :class="editingId === lok.id ? 'bg-blue-50' : 'hover:bg-gray-100'">
+                            {{-- Normal Mode --}}
+                            <div x-show="editingId !== lok.id" class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-medium text-gray-900 capitalize" x-text="lok.lokasi || '(Tanpa lokasi)'"></div>
+                                    <div x-show="lok.catatan" class="text-xs text-gray-500 mt-1" x-text="lok.catatan"></div>
+                                </div>
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                    <button @click="startEdit(lok)" :disabled="deleting || saving" 
+                                            class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                                            title="Edit">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                        </svg>
+                                    </button>
+                                    <button @click="deleteLokasi(lok.id)" :disabled="deleting || saving" 
+                                            class="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                            title="Hapus">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {{-- Edit Mode --}}
+                            <div x-show="editingId === lok.id" class="space-y-2">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Lokasi</label>
+                                    <input type="text" x-model="editingLokasi" 
+                                           class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                           placeholder="Nama lokasi posyandu">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label>
+                                    <input type="text" x-model="editingCatatan" 
+                                           class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                           placeholder="Catatan tambahan (opsional)">
+                                </div>
+                                <div class="flex justify-end gap-2 pt-1">
+                                    <button @click="cancelEdit()" :disabled="saving" 
+                                            class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50">
+                                        Batal
+                                    </button>
+                                    <button @click="saveEdit()" :disabled="saving" 
+                                            class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                                        <span x-show="!saving">Simpan</span>
+                                        <span x-show="saving">Menyimpan...</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </template>
                     <div x-show="lokasiList.length === 0" class="text-center py-4 text-sm text-gray-400">
                         Tidak ada lokasi
+                    </div>
+                </div>
+
+                {{-- Form Tambah Lokasi Baru --}}
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <h4 class="text-xs font-semibold text-gray-700 mb-3">Tambah Lokasi Baru</h4>
+                    <div class="space-y-2">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Nama Lokasi Posyandu</label>
+                            <input type="text" x-model="newLokasi" 
+                                   placeholder="cth: Posyandu Bina Atmaja 1"
+                                   :disabled="adding"
+                                   class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:opacity-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Catatan (opsional)</label>
+                            <input type="text" x-model="newCatatan" 
+                                   placeholder="Catatan tambahan"
+                                   :disabled="adding"
+                                   class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:opacity-50">
+                        </div>
+                        <button @click="addLokasi()" :disabled="adding || (!newLokasi && !newCatatan)" 
+                                class="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            <span x-show="!adding">Tambah Lokasi</span>
+                            <span x-show="adding">Menambahkan...</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1318,42 +1369,18 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 
-    Alpine.data('dateManager', () => ({
-        infoTanggal: '',
-        infoLokasi: '',
-        infoCatatan: '',
-
-        async saveInfo() {
-            if (!this.infoTanggal) {
-                window.toast('Pilih tanggal terlebih dahulu', 'error');
-                return;
-            }
-            if (!this.infoLokasi && !this.infoCatatan) {
-                window.toast('Isi lokasi atau catatan', 'error');
-                return;
-            }
-            try {
-                const res = await window.api.post('/info-tanggal', {
-                    tanggal: this.infoTanggal,
-                    lokasi: this.infoLokasi || null,
-                    catatan: this.infoCatatan || null,
-                });
-                const data = await res.json();
-                if (data.success) {
-                    window.toast(data.message, 'success');
-                    location.reload();
-                } else {
-                    window.toast(data.message || 'Gagal', 'error');
-                }
-            } catch (e) { window.toast('Terjadi kesalahan', 'error'); }
-        }
-    }));
-
     Alpine.data('lokasiModalManager', () => ({
         showModal: false,
         selectedDate: '',
         lokasiList: [],
         deleting: false,
+        editingId: null,
+        editingLokasi: '',
+        editingCatatan: '',
+        saving: false,
+        newLokasi: '',
+        newCatatan: '',
+        adding: false,
 
         init() {
             window.addEventListener('show-lokasi-modal', (e) => {
@@ -1365,6 +1392,85 @@ document.addEventListener('alpine:init', () => {
             this.selectedDate = tanggal;
             this.lokasiList = lokasiData || [];
             this.showModal = true;
+            this.cancelEdit();
+            this.resetNewForm();
+        },
+
+        startEdit(lok) {
+            this.editingId = lok.id;
+            this.editingLokasi = lok.lokasi || '';
+            this.editingCatatan = lok.catatan || '';
+        },
+
+        cancelEdit() {
+            this.editingId = null;
+            this.editingLokasi = '';
+            this.editingCatatan = '';
+        },
+
+        resetNewForm() {
+            this.newLokasi = '';
+            this.newCatatan = '';
+        },
+
+        async addLokasi() {
+            if (this.adding) return;
+            if (!this.newLokasi && !this.newCatatan) {
+                window.toast('Isi lokasi atau catatan', 'error');
+                return;
+            }
+
+            this.adding = true;
+            try {
+                const res = await window.api.post('/info-tanggal', {
+                    tanggal: this.selectedDate,
+                    lokasi: this.newLokasi || null,
+                    catatan: this.newCatatan || null,
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.toast(data.message, 'success');
+                    // Add to list
+                    this.lokasiList.push(data.data);
+                    this.resetNewForm();
+                    // Reload to update calendar view
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    window.toast(data.message || 'Gagal menambah', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+            this.adding = false;
+        },
+
+        async saveEdit() {
+            if (this.saving) return;
+
+            this.saving = true;
+            try {
+                const res = await window.api.put('/info-tanggal', {
+                    id: this.editingId,
+                    lokasi: this.editingLokasi,
+                    catatan: this.editingCatatan
+                });
+                const data = await res.json();
+                if (data.success) {
+                    window.toast(data.message, 'success');
+                    // Update lokasiList
+                    const index = this.lokasiList.findIndex(l => l.id === this.editingId);
+                    if (index !== -1) {
+                        this.lokasiList[index].lokasi = this.editingLokasi;
+                        this.lokasiList[index].catatan = this.editingCatatan;
+                    }
+                    this.cancelEdit();
+                } else {
+                    window.toast(data.message || 'Gagal mengubah', 'error');
+                }
+            } catch (e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+            this.saving = false;
         },
 
         async deleteLokasi(id) {

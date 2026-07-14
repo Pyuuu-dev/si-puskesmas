@@ -134,6 +134,36 @@ class TanggalLiburController extends Controller
         return response()->json(['success' => true, 'message' => 'Info lokasi berhasil ditambahkan.', 'data' => $record]);
     }
 
+    public function updateInfo(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => 'required|integer|exists:info_tanggal,id',
+            'lokasi' => 'nullable|string|max:255',
+            'catatan' => 'nullable|string|max:255',
+        ]);
+
+        $info = InfoTanggal::findOrFail($validated['id']);
+        $oldData = [
+            'lokasi' => $info->lokasi,
+            'catatan' => $info->catatan,
+        ];
+
+        $info->update([
+            'lokasi' => $validated['lokasi'] ?? null,
+            'catatan' => $validated['catatan'] ?? null,
+        ]);
+
+        ActivityLogger::log(
+            event: 'update',
+            module: 'tanggal_libur',
+            description: "Mengubah info lokasi pada {$info->tanggal->format('Y-m-d')}" . (!empty($validated['lokasi']) ? " ({$validated['lokasi']})" : ""),
+            subject: $info,
+            properties: ['old' => $oldData, 'new' => $validated],
+        );
+
+        return response()->json(['success' => true, 'message' => 'Info lokasi berhasil diubah.', 'data' => $info]);
+    }
+
     public function destroyInfo(Request $request)
     {
         $validated = $request->validate([

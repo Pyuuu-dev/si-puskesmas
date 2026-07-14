@@ -198,6 +198,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/info-tanggal', [\App\Http\Controllers\TanggalLiburController::class, 'storeInfo'])
         ->middleware('permission:tanggal-libur.create')
         ->name('info-tanggal.store');
+    Route::put('/info-tanggal', [\App\Http\Controllers\TanggalLiburController::class, 'updateInfo'])
+        ->middleware('permission:tanggal-libur.create')
+        ->name('info-tanggal.update');
     Route::delete('/info-tanggal', [\App\Http\Controllers\TanggalLiburController::class, 'destroyInfo'])
         ->middleware('permission:tanggal-libur.delete')
         ->name('info-tanggal.destroy');
