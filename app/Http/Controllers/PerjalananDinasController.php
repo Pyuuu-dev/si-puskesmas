@@ -693,7 +693,7 @@ class PerjalananDinasController extends Controller
             ];
         }
 
-        $dinasData = PerjalananDinas::with(['kegiatan.rincianMenu.menuKegiatan'])
+        $dinasData = PerjalananDinas::with(['kegiatan.rincianMenu.menuKegiatan', 'spjCheckedBy'])
             ->whereMonth('tanggal', $bulan)
             ->whereYear('tanggal', $tahun)
             ->get();
@@ -719,7 +719,24 @@ class PerjalananDinasController extends Controller
             }
 
             if ($cell) {
-                $matrix[$record->user_id][$record->tanggal->format('Y-m-d')] = $cell;
+                $matrix[$record->user_id][$record->tanggal->format('Y-m-d')] = array_merge($cell, [
+                    'spj_checked' => (bool) $record->spj_checked,
+                ]);
+            }
+        }
+
+        // Absensi matrix (izin, sakit, cuti, dll)
+        $absensiData = Absensi::whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->where('slot', 'pagi')
+            ->whereIn('status', ['izin', 'sakit', 'cuti', 'dinas_luar', 'ijin_belajar', 'cuti_bersalin', 'cuti_tahunan', 'alfa'])
+            ->get();
+
+        $absensiMatrix = [];
+        foreach ($absensiData as $record) {
+            $key = $record->tanggal->format('Y-m-d');
+            if (!isset($absensiMatrix[$record->user_id][$key])) {
+                $absensiMatrix[$record->user_id][$key] = $record->status;
             }
         }
 
@@ -735,6 +752,7 @@ class PerjalananDinasController extends Controller
             'pegawai',
             'dates',
             'matrix',
+            'absensiMatrix',
             'bulan',
             'tahun',
             'namaBulan',
