@@ -721,6 +721,7 @@ class PerjalananDinasController extends Controller
             if ($cell) {
                 $matrix[$record->user_id][$record->tanggal->format('Y-m-d')] = array_merge($cell, [
                     'spj_checked' => (bool) $record->spj_checked,
+                    'spj_catatan' => $record->spj_catatan,
                 ]);
             }
         }

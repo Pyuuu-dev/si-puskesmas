@@ -209,6 +209,25 @@
         .cell-empty { height: 22px; }
         .cell-empty-weekend { background: #fff5f5; height: 22px; }
 
+        /* ===== CATATAN SPJ ===== */
+        .catatan-spj {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            font-size: 7pt;
+            border: 1px solid #ccc;
+            padding: 5px 8px;
+        }
+
+        .catatan-spj-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .catatan-spj-item {
+            margin-bottom: 2px;
+            line-height: 1.4;
+        }
+
         /* ===== LEGENDA ===== */
         .legenda {
             margin-top: 10px;
@@ -385,6 +404,43 @@
             @endforeach
         </tbody>
     </table>
+
+    {{-- Catatan SPJ --}}
+    @php
+        $hasCatatan = false;
+        foreach ($pegawai as $p) {
+            if (isset($matrix[$p->id])) {
+                foreach ($matrix[$p->id] as $cell) {
+                    if (!empty($cell['spj_checked']) && !empty($cell['spj_catatan'])) {
+                        $hasCatatan = true;
+                        break 2;
+                    }
+                }
+            }
+        }
+    @endphp
+
+    @if($hasCatatan)
+    @php
+        $catatanList = [];
+        foreach ($pegawai as $p) {
+            if (isset($matrix[$p->id])) {
+                foreach ($matrix[$p->id] as $cell) {
+                    if (!empty($cell['spj_checked']) && !empty($cell['spj_catatan'])) {
+                        $key = $cell['kegiatan_nama'] . '||' . $cell['spj_catatan'];
+                        $catatanList[$key] = ['kegiatan_nama' => $cell['kegiatan_nama'], 'spj_catatan' => $cell['spj_catatan']];
+                    }
+                }
+            }
+        }
+    @endphp
+        <div class="catatan-spj">
+            <div class="catatan-spj-title">Catatan SPJ:</div>
+            @foreach($catatanList as $item)
+                <div class="catatan-spj-item">{{ $item['kegiatan_nama'] }}: {{ $item['spj_catatan'] }}</div>
+            @endforeach
+        </div>
+    @endif
 
     {{-- Legenda --}}
     <div class="legenda">

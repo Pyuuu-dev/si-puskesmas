@@ -419,6 +419,47 @@
         </div>
     </div>
 
+    {{-- Catatan SPJ di bawah table --}}
+    @php
+        $hasCatatan = false;
+        foreach ($pegawai as $p) {
+            if (isset($matrix[$p->id])) {
+                foreach ($matrix[$p->id] as $cell) {
+                    if (!empty($cell['spj_checked']) && !empty($cell['spj_catatan'])) {
+                        $hasCatatan = true;
+                        break 2;
+                    }
+                }
+            }
+        }
+    @endphp
+
+    @if($hasCatatan)
+    @php
+        $catatanList = [];
+        foreach ($pegawai as $p) {
+            if (isset($matrix[$p->id])) {
+                foreach ($matrix[$p->id] as $cell) {
+                    if (!empty($cell['spj_checked']) && !empty($cell['spj_catatan'])) {
+                        $key = $cell['kegiatan_nama'] . '||' . $cell['spj_catatan'];
+                        $catatanList[$key] = ['kegiatan_nama' => $cell['kegiatan_nama'], 'spj_catatan' => $cell['spj_catatan']];
+                    }
+                }
+            }
+        }
+    @endphp
+    <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+        <p class="text-xs text-green-700 font-medium mb-2">Catatan SPJ:</p>
+        <div class="space-y-1">
+            @foreach($catatanList as $item)
+                <div class="text-xs text-green-800">
+                    <span class="font-semibold">{{ $item['kegiatan_nama'] }}:</span> {{ $item['spj_catatan'] }}
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- Keterangan Libur di bawah table --}}
     @php
         $liburDates = collect($dates)->filter(fn($d) => $d['keterangan_libur'] || $d['catatan_libur']);
