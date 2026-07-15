@@ -111,11 +111,14 @@
                     <h3 class="text-sm font-bold text-gray-900">Top 5 Tidak Apel (Bulan Ini)</h3>
                     <p class="text-xs text-gray-500 mt-0.5">Hadir tapi tidak ikut apel pagi/siang</p>
                 </div>
-                @if(count($topTA) > 0)
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                    {{ array_sum(array_column($topTA, 'total')) }} TA
-                </span>
-                @endif
+                <div class="flex items-center gap-2">
+                    @if(count($topTA) > 0)
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                        {{ array_sum(array_column($topTA, 'total')) }} TA
+                    </span>
+                    @endif
+                    <a href="{{ route('tidak-apel') }}" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">Detail &rarr;</a>
+                </div>
             </div>
             @if(count($topTA) > 0)
                 <div class="relative" style="height:240px">

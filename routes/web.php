@@ -7,6 +7,7 @@ use App\Http\Controllers\ArsipLinkController;
 use App\Http\Controllers\ArsipTagController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\TidakApelController;
 use App\Http\Controllers\KodeKegiatanController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PerjalananDinasController;
@@ -54,6 +55,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('permission:dashboard.view')
         ->name('dashboard');
+
+    // Tidak Apel detail
+    Route::get('/tidak-apel', [TidakApelController::class, 'index'])
+        ->middleware('permission:dashboard.view')
+        ->name('tidak-apel');
 
     // Profile (semua user login)
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
