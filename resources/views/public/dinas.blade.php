@@ -352,6 +352,36 @@
         </div>
         @endif
 
+        {{-- ===== SECTION 3: CATATAN SPJ ===== --}}
+        @php
+            $catatanList = [];
+            foreach ($allPegawai as $peg) {
+                foreach ($matrix[$peg->id] ?? [] as $tgl => $cell) {
+                    if (!empty($cell['spj_checked']) && !empty($cell['spj_catatan'])) {
+                        $key = $cell['kegiatan_nama'] . '||' . $cell['spj_catatan'];
+                        $catatanList[$key] = [
+                            'kegiatan_nama' => $cell['kegiatan_nama'],
+                            'spj_catatan'   => $cell['spj_catatan'],
+                        ];
+                    }
+                }
+            }
+        @endphp
+        @if(count($catatanList) > 0)
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-200 bg-white flex items-center gap-2">
+                <span class="text-base font-semibold text-gray-700">Catatan SPJ</span>
+            </div>
+            <ul class="divide-y divide-gray-100">
+                @foreach($catatanList as $item)
+                <li class="px-5 py-2.5 text-sm text-gray-800">
+                    <span class="font-medium">{{ $item['kegiatan_nama'] }}:</span> {{ $item['spj_catatan'] }}
+                </li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+
     </div>
 
     {{-- Footer --}}
