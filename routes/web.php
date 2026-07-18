@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\AbsensiController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ArsipFolderController;
 use App\Http\Controllers\ArsipLinkController;
 use App\Http\Controllers\ArsipTagController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TidakApelController;
+use App\Http\Controllers\RekapCutiController;
 use App\Http\Controllers\KodeKegiatanController;
 use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\PerjalananDinasController;
@@ -61,9 +63,20 @@ Route::middleware('auth')->group(function () {
         ->middleware('permission:dashboard.view')
         ->name('tidak-apel');
 
+    // Rekap Cuti Tahunan
+    Route::get('/rekap-cuti', [RekapCutiController::class, 'index'])
+        ->middleware('permission:dashboard.view')
+        ->name('rekap-cuti');
+
     // Profile (semua user login)
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    // Changelog (semua user bisa lihat, hanya super_admin bisa CUD)
+    Route::get('/changelog', [ChangelogController::class, 'index'])->name('changelog.index');
+    Route::post('/changelog', [ChangelogController::class, 'store'])->name('changelog.store');
+    Route::put('/changelog/{changelog}', [ChangelogController::class, 'update'])->name('changelog.update');
+    Route::delete('/changelog/{changelog}', [ChangelogController::class, 'destroy'])->name('changelog.destroy');
 
     // Absensi
     Route::get('/absensi', [AbsensiController::class, 'index'])

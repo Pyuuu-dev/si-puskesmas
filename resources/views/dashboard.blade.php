@@ -89,6 +89,7 @@
             <div class="bg-rose-50 rounded-lg p-3 text-center">
                 <p class="text-2xl font-bold text-rose-700">{{ $totalCutiBulanIni }}</p>
                 <p class="text-xs text-rose-600 mt-1">Cuti</p>
+                <a href="{{ route('rekap-cuti') }}" class="text-[10px] text-rose-500 hover:text-rose-700 font-medium mt-1 inline-block">Detail &rarr;</a>
             </div>
             <div class="bg-sky-50 rounded-lg p-3 text-center">
                 <p class="text-2xl font-bold text-sky-700">{{ $totalDinasLuarBulanIni }}</p>
