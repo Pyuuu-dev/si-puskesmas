@@ -17,7 +17,12 @@ class HasilAbsensiController extends Controller
         $tahun = (int) $request->query('tahun', now()->year);
         $penempatan = $request->query('penempatan', '');
 
+        $periodeAkhir = sprintf('%04d-%02d-01', $tahun, $bulan);
         $pegawai = User::where('role', '!=', 'super_admin')
+            ->where(function ($q) use ($periodeAkhir) {
+                $q->whereNull('nonaktif_sejak')
+                  ->orWhere('nonaktif_sejak', '>=', $periodeAkhir);
+            })
             ->when($penempatan, fn($q) => $q->where('penempatan', $penempatan))
             ->orderBy('urutan')
             ->orderBy('name')

@@ -29,7 +29,12 @@ class PerjalananDinasController extends Controller
         }
         $selectedPegawai = array_map('intval', $selectedPegawai);
 
+        $periodeAkhir = sprintf('%04d-%02d-01', $tahun, $bulan);
         $allPegawai = User::where('role', '!=', 'super_admin')
+            ->where(function ($q) use ($periodeAkhir) {
+                $q->whereNull('nonaktif_sejak')
+                  ->orWhere('nonaktif_sejak', '>=', $periodeAkhir);
+            })
             ->orderBy('urutan')
             ->orderBy('name')
             ->get();
@@ -627,7 +632,12 @@ class PerjalananDinasController extends Controller
         }
         $selectedPegawai = array_map('intval', $selectedPegawai);
 
+        $periodeAkhirCetak = sprintf('%04d-%02d-01', $tahun, $bulan);
         $allPegawai = User::where('role', '!=', 'super_admin')
+            ->where(function ($q) use ($periodeAkhirCetak) {
+                $q->whereNull('nonaktif_sejak')
+                  ->orWhere('nonaktif_sejak', '>=', $periodeAkhirCetak);
+            })
             ->orderBy('urutan')
             ->orderBy('name')
             ->get();

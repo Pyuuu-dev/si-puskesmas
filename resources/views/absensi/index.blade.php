@@ -156,6 +156,10 @@
                                         $borderClass = $slot === 'sore' ? 'border-r border-gray-200' : 'border-r border-gray-100';
                                         $isLibur = $date['is_weekend'];
 
+                                        // Cek apakah tanggal ini >= tanggal nonaktif pegawai
+                                        $isNonaktifPadaTanggal = $p->nonaktif_sejak
+                                            && $date['tanggal'] >= $p->nonaktif_sejak->format('Y-m-d');
+
                                         // Ambil data kedua slot untuk modal
                                         $pagiData = $matrix[$p->id][$date['tanggal']]['pagi'] ?? null;
                                         $soreData = $matrix[$p->id][$date['tanggal']]['sore'] ?? null;
@@ -178,6 +182,16 @@
                                         {{-- Libur: tidak bisa diklik --}}
                                         <td class="px-0 py-0 text-center {{ $borderClass }} bg-red-50/50">
                                             <div class="w-full h-8"></div>
+                                        </td>
+                                    @elseif($isNonaktifPadaTanggal && !$status)
+                                        {{-- Nonaktif & belum ada data: grayed out, tapi admin tetap bisa klik --}}
+                                        <td class="relative px-0 py-0 text-center {{ $borderClass }} cursor-pointer bg-gray-100/80 hover:bg-gray-200/80"
+                                            @click="openModal({{ $p->id }}, '{{ addslashes($p->name) }}', '{{ $date['tanggal'] }}', '{{ $pagiStatus }}', '{{ $pagiJam }}', '{{ $pagiKet }}', '{{ $soreStatus }}', '{{ $soreJam }}', '{{ $soreKet }}')"
+                                            title="Pegawai nonaktif sejak {{ $p->nonaktif_sejak->format('d/m/Y') }} — klik untuk input manual jika diperlukan"
+                                        >
+                                            <div class="w-full h-8 flex items-center justify-center">
+                                                <span class="text-[9px] text-gray-400 font-medium">–</span>
+                                            </div>
                                         </td>
                                     @else
                                         <td class="relative px-0 py-0 text-center {{ $borderClass }} cursor-pointer hover:opacity-80 {{ $cellClass }}"

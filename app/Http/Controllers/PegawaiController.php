@@ -50,6 +50,7 @@ class PegawaiController extends Controller
             'email' => 'required|email|unique:users,email',
             'role' => 'required|exists:roles,name',
             'is_user' => 'required|boolean',
+            'nonaktif_sejak' => 'nullable|date',
             'password' => 'required_if:is_user,true|nullable|string|min:6',
         ]);
 
@@ -57,6 +58,11 @@ class PegawaiController extends Controller
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
+        }
+
+        // Simpan null jika string kosong
+        if (isset($validated['nonaktif_sejak']) && $validated['nonaktif_sejak'] === '') {
+            $validated['nonaktif_sejak'] = null;
         }
 
         $user = User::create($validated);
@@ -92,8 +98,13 @@ class PegawaiController extends Controller
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
             'role' => 'required|exists:roles,name',
             'is_user' => 'required|boolean',
+            'nonaktif_sejak' => 'nullable|date',
             'password' => 'nullable|string|min:6',
         ]);
+
+        if (isset($validated['nonaktif_sejak']) && $validated['nonaktif_sejak'] === '') {
+            $validated['nonaktif_sejak'] = null;
+        }
 
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);

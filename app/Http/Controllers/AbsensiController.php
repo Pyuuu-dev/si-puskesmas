@@ -21,8 +21,13 @@ class AbsensiController extends Controller
         $bulan = (int) $bulan;
         $tahun = (int) $tahun;
 
-        // Get all pegawai (exclude super_admin with name Administrator)
+        // Get all pegawai (exclude super_admin), hanya yang aktif pada bulan ini
+        $periodeAkhir = sprintf('%04d-%02d-01', $tahun, $bulan);
         $pegawai = User::where('role', '!=', 'super_admin')
+            ->where(function ($q) use ($periodeAkhir) {
+                $q->whereNull('nonaktif_sejak')
+                  ->orWhere('nonaktif_sejak', '>=', $periodeAkhir);
+            })
             ->orderBy('urutan')
             ->orderBy('name')
             ->get();

@@ -282,6 +282,10 @@
                                     $isKepalaAbsenCol = isset($kepalaAbsen[$date['tanggal']]);
                                     if ($cellData) $totalDinas++;
 
+                                    // Cek nonaktif pada tanggal ini
+                                    $isNonaktifPadaTanggal = $p->nonaktif_sejak
+                                        && $date['tanggal'] >= $p->nonaktif_sejak->format('Y-m-d');
+
                                     // Cek blokir: per orang+tanggal ATAU seluruh tanggal
                                     $blokirKet = $blokirMatrix[$p->id][$date['tanggal']]
                                         ?? $blokirMatrix['all'][$date['tanggal']]
@@ -338,6 +342,40 @@
                                         {{-- Non-admin: hanya tampil hitam --}}
                                         <td class="px-0 py-0 text-center border-r border-gray-200">
                                             <div class="w-full h-8 bg-gray-900" title="Tidak tersedia"></div>
+                                        </td>
+                                    @endif
+                                @elseif($isNonaktifPadaTanggal && !$cellData)
+                                    {{-- Nonaktif & belum ada data: grayed out, admin tetap bisa klik --}}
+                                    @if($isAdmin)
+                                        <td class="px-0 py-0 text-center border-r border-gray-200 cursor-pointer bg-gray-100/80 hover:bg-gray-200/80 {{ $colTint }}"
+                                            x-data="dinasCell({
+                                                userId: {{ $p->id }},
+                                                namaUser: '{{ addslashes($p->name) }}',
+                                                tanggal: '{{ $date['tanggal'] }}',
+                                                isAdmin: true,
+                                                kegiatanId: null,
+                                                kode: '',
+                                                warna: '',
+                                                kegiatanNama: '',
+                                                isManual: false,
+                                                manualLabel: '',
+                                                keterangan: '',
+                                                absensiStatus: '{{ $absensiStatus ?? '' }}',
+                                                absensiLabel: '',
+                                                absensiClass: '',
+                                                absensiTitle: '',
+                                            })"
+                                            title="Pegawai nonaktif sejak {{ $p->nonaktif_sejak->format('d/m/Y') }} — klik untuk input manual jika diperlukan"
+                                            @click="open()">
+                                            <div class="w-full h-8 flex items-center justify-center">
+                                                <span class="text-[9px] text-gray-400 font-medium">–</span>
+                                            </div>
+                                        </td>
+                                    @else
+                                        <td class="px-0 py-0 text-center border-r border-gray-200 bg-gray-100/80">
+                                            <div class="w-full h-8 flex items-center justify-center">
+                                                <span class="text-[9px] text-gray-400 font-medium">–</span>
+                                            </div>
                                         </td>
                                     @endif
                                 @else

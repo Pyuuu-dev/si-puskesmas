@@ -70,6 +70,7 @@
                         <th class="px-4 py-3 text-left font-semibold text-gray-700">Email</th>
                         <th class="px-4 py-3 text-left font-semibold text-gray-700">Role</th>
                         <th class="px-4 py-3 text-left font-semibold text-gray-700">Akses Login</th>
+                        <th class="px-4 py-3 text-left font-semibold text-gray-700">Nonaktif Sejak</th>
                         <th class="px-4 py-3 text-center font-semibold text-gray-700">Aksi</th>
                     </tr>
                 </thead>
@@ -122,10 +123,19 @@
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">Tidak</span>
                                 @endif
                             </td>
+                            <td class="px-4 py-3">
+                                @if($p->nonaktif_sejak)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                                        {{ $p->nonaktif_sejak->format('d/m/Y') }}
+                                    </span>
+                                @else
+                                    <span class="text-gray-400 text-xs">-</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-center">
                                 <div class="flex items-center justify-center gap-1">
                                     <button
-                                        @click="openEdit({{ $p->id }}, {{ json_encode(['name'=>$p->name,'nip'=>$p->nip,'pangkat_golongan'=>$p->pangkat_golongan,'status_pegawai'=>$p->status_pegawai,'status_kepegawaian'=>$p->status_kepegawaian,'jabatan'=>$p->jabatan,'unit_kerja'=>$p->unit_kerja,'penempatan'=>$p->penempatan ?? 'induk','email'=>$p->email,'role'=>$p->role,'is_user'=>$p->is_user ?? true]) }})"
+                                        @click="openEdit({{ $p->id }}, {{ json_encode(['name'=>$p->name,'nip'=>$p->nip,'pangkat_golongan'=>$p->pangkat_golongan,'status_pegawai'=>$p->status_pegawai,'status_kepegawaian'=>$p->status_kepegawaian,'jabatan'=>$p->jabatan,'unit_kerja'=>$p->unit_kerja,'penempatan'=>$p->penempatan ?? 'induk','email'=>$p->email,'role'=>$p->role,'is_user'=>$p->is_user ?? true,'nonaktif_sejak'=>$p->nonaktif_sejak ? $p->nonaktif_sejak->format('Y-m-d') : '']) }})"
                                         class="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                                         title="Edit"
                                     >
@@ -302,6 +312,11 @@
                         </div>
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nonaktif Sejak</label>
+                        <input type="date" x-model="form.nonaktif_sejak" class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <p class="text-xs text-gray-400 mt-1">Isi tanggal jika pegawai sudah tidak aktif bekerja. Kosongkan jika masih aktif.</p>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
                         <input type="email" x-model="form.email" class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="email@example.com">
                     </div>
@@ -411,11 +426,12 @@ document.addEventListener('alpine:init', () => {
             email: '',
             role: 'pegawai',
             is_user: true,
+            nonaktif_sejak: '',
             password: ''
         },
 
         resetForm() {
-            this.form = { name: '', nip: '', pangkat_golongan: '', status_pegawai: '', status_kepegawaian: '', jabatan: '', unit_kerja: '', penempatan: 'induk', email: '', role: 'pegawai', is_user: true, password: '' };
+            this.form = { name: '', nip: '', pangkat_golongan: '', status_pegawai: '', status_kepegawaian: '', jabatan: '', unit_kerja: '', penempatan: 'induk', email: '', role: 'pegawai', is_user: true, nonaktif_sejak: '', password: '' };
             this.errors = [];
             this.editId = null;
         },

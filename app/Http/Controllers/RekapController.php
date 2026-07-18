@@ -64,7 +64,12 @@ class RekapController extends Controller
         $bulan = (int) $request->query('bulan', now()->month);
         $tahun = (int) $request->query('tahun', now()->year);
 
+        $periodeAkhirExport = sprintf('%04d-%02d-01', $tahun, $bulan);
         $pegawai = User::where('role', '!=', 'super_admin')
+            ->where(function ($q) use ($periodeAkhirExport) {
+                $q->whereNull('nonaktif_sejak')
+                  ->orWhere('nonaktif_sejak', '>=', $periodeAkhirExport);
+            })
             ->orderBy('urutan')
             ->orderBy('name')
             ->get();
@@ -266,7 +271,12 @@ class RekapController extends Controller
         $bulan = (int) $request->query('bulan', now()->month);
         $tahun = (int) $request->query('tahun', now()->year);
 
+        $periodeAkhir = sprintf('%04d-%02d-01', $tahun, $bulan);
         $pegawai = User::where('role', '!=', 'super_admin')
+            ->where(function ($q) use ($periodeAkhir) {
+                $q->whereNull('nonaktif_sejak')
+                  ->orWhere('nonaktif_sejak', '>=', $periodeAkhir);
+            })
             ->orderBy('urutan')
             ->orderBy('name')
             ->get();
@@ -324,7 +334,12 @@ class RekapController extends Controller
         $namaBulan = strtoupper($startDate->locale('id')->isoFormat('MMMM'));
         $namaInstansi = Setting::get('nama_instansi', 'UPTD Puskesmas');
 
+        $periodeAkhirExcel = sprintf('%04d-%02d-01', $tahun, $bulan);
         $pegawai = User::where('role', '!=', 'super_admin')
+            ->where(function ($q) use ($periodeAkhirExcel) {
+                $q->whereNull('nonaktif_sejak')
+                  ->orWhere('nonaktif_sejak', '>=', $periodeAkhirExcel);
+            })
             ->orderBy('urutan')->orderBy('name')->get();
 
         $absensiData = Absensi::whereMonth('tanggal', $bulan)

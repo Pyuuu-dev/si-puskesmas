@@ -25,6 +25,7 @@ class User extends Authenticatable
         'email',
         'role',
         'is_user',
+        'nonaktif_sejak',
         'urutan',
         'foto',
         'password',
@@ -41,6 +42,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_user' => 'boolean',
+            'nonaktif_sejak' => 'date',
         ];
     }
 
