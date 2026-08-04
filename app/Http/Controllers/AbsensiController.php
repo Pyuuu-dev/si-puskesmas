@@ -23,7 +23,8 @@ class AbsensiController extends Controller
 
         // Get all pegawai (exclude super_admin), hanya yang aktif pada bulan ini
         $periodeAkhir = sprintf('%04d-%02d-01', $tahun, $bulan);
-        $pegawai = User::where('role', '!=', 'super_admin')
+
+        $allPegawai = User::where('role', '!=', 'super_admin')
             ->where(function ($q) use ($periodeAkhir) {
                 $q->whereNull('nonaktif_sejak')
                   ->orWhere('nonaktif_sejak', '>=', $periodeAkhir);
@@ -31,6 +32,12 @@ class AbsensiController extends Controller
             ->orderBy('urutan')
             ->orderBy('name')
             ->get();
+
+        $selectedPegawai = array_filter(array_map('intval', (array) $request->query('pegawai', [])));
+
+        $pegawai = $selectedPegawai
+            ? $allPegawai->whereIn('id', $selectedPegawai)->values()
+            : $allPegawai;
 
         // Get days in month
         $startDate = Carbon::createFromDate($tahun, $bulan, 1);
@@ -104,6 +111,8 @@ class AbsensiController extends Controller
 
         return view('absensi.index', compact(
             'pegawai',
+            'allPegawai',
+            'selectedPegawai',
             'dates',
             'matrix',
             'bulan',

@@ -200,6 +200,35 @@
     </div>
     @endif
 
+    {{-- Banner: Mode Tempel Aktif --}}
+    @can('perjalanan-dinas.create')
+    <div x-data="{ active: false, kode: '', warna: '' }"
+         @dinas-clipboard-set.window="active = true; kode = window.dinasClipboard?.kode ?? ''; warna = window.dinasClipboard?.warna ?? ''"
+         @dinas-clipboard-clear.window="active = false; kode = ''; warna = ''"
+         x-show="active"
+         x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 -translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="flex items-center justify-between gap-3 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm shadow-md">
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z"/>
+            </svg>
+            <span>Mode tempel aktif —</span>
+            <span class="inline-flex items-center gap-1">
+                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="'background:' + warna"></span>
+                <strong x-text="kode"></strong>
+            </span>
+            <span class="text-orange-200 text-xs">· Klik sel tujuan untuk tempel, klik sel sumber untuk batal</span>
+        </div>
+        <button @click="window.dinasClipboard = null; $dispatch('dinas-clipboard-clear')"
+                class="flex-shrink-0 px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded text-xs font-medium transition-colors">
+            Batal (Esc)
+        </button>
+    </div>
+    @endcan
+
     {{-- Matrix Table --}}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto max-h-[75vh] overflow-y-auto">
@@ -402,12 +431,26 @@
                                             spjCheckedAt: '{{ $cellData['spj_checked_at'] ?? '' }}'
                                         })"
                                     >
-                                        <div class="relative">
+                                        <div class="relative"
+                                             @dinas-clipboard-set.window="$el.classList.add('clipboard-reactive')"
+                                             @dinas-clipboard-clear.window="$el.classList.remove('clipboard-reactive')">
                                             {{-- Klik handler: admin + ada kegiatan → modal SPJ; lainnya → dropdown picker --}}
                                             <button
                                                 @click="handleClick()"
-                                                class="w-full h-8 flex flex-col items-stretch justify-center cursor-pointer transition-colors overflow-hidden"
-                                                :class="!kode && !absensiStatus ? 'hover:bg-gray-100' : ''"
+                                                @mousedown="onPressStart($event)"
+                                                @mouseup="onPressEnd()"
+                                                @mouseleave="onPressEnd()"
+                                                @touchstart.passive="onPressStart($event)"
+                                                @touchend="onPressEnd()"
+                                                @touchcancel="onPressEnd()"
+                                                @contextmenu.prevent="(kegiatanId || isManual) && !window.dinasClipboard ? onPressStart($event) : null"
+                                                class="w-full h-8 flex flex-col items-stretch justify-center cursor-pointer transition-all overflow-hidden select-none"
+                                                :class="{
+                                                    'hover:bg-gray-100': !kode && !absensiStatus && !clipboardActive,
+                                                    'ring-2 ring-orange-400 ring-inset animate-pulse': isCopied,
+                                                    'hover:ring-2 hover:ring-orange-300 hover:ring-inset': clipboardActive && !isCopied,
+                                                    'cursor-copy': clipboardActive && !isCopied,
+                                                }"
                                                 :title="cellTitle()"
                                             >
                                                 {{-- Strip absensi (saat ada absensi DAN ada kegiatan) --}}
@@ -441,6 +484,19 @@
                                                   title="SPJ sudah diperiksa">
                                                 <svg class="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke-width="4" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
                                             </span>
+
+                                            {{-- Konfirmasi timpa (muncul di sel tujuan yang sudah ada data) --}}
+                                            <div x-show="_pasteConfirm" x-cloak
+                                                 class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-orange-500/95 gap-0.5"
+                                                 @click.stop>
+                                                <span class="text-[8px] text-white font-bold leading-tight text-center px-0.5">Timpa?</span>
+                                                <div class="flex gap-0.5">
+                                                    <button @click.stop="doPaste(true)"
+                                                            class="px-1 py-0.5 bg-white text-orange-600 text-[8px] font-bold rounded hover:bg-orange-50">Ya</button>
+                                                    <button @click.stop="_pasteConfirm = false"
+                                                            class="px-1 py-0.5 bg-orange-700 text-white text-[8px] font-bold rounded hover:bg-orange-800">Tdk</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
                                 @endif
@@ -1064,40 +1120,6 @@ window.showLokasiModal = function(tanggal, lokasiData) {
 };
 
 document.addEventListener('alpine:init', () => {
-    // Pegawai filter (search-based multi-select)
-    Alpine.data('pegawaiFilter', (initialSelected, allPegawai) => ({
-        selected: Array.isArray(initialSelected) ? initialSelected.map(Number) : [],
-        allPegawai: allPegawai || [],
-        search: '',
-        open: false,
-        filtered() {
-            const q = this.search.trim().toLowerCase();
-            if (!q) return this.allPegawai;
-            return this.allPegawai.filter(p => (p.name || '').toLowerCase().includes(q));
-        },
-        isSelected(id) {
-            return this.selected.includes(Number(id));
-        },
-        toggle(id) {
-            const n = Number(id);
-            const idx = this.selected.indexOf(n);
-            if (idx === -1) this.selected.push(n);
-            else this.selected.splice(idx, 1);
-        },
-        remove(id) {
-            const n = Number(id);
-            const idx = this.selected.indexOf(n);
-            if (idx !== -1) this.selected.splice(idx, 1);
-        },
-        reset() {
-            this.selected = [];
-        },
-        nameOf(id) {
-            const p = this.allPegawai.find(x => Number(x.id) === Number(id));
-            return p ? p.name : '#' + id;
-        }
-    }));
-
     // Kepala absen banner — edit keterangan
     Alpine.data('kepalaBanner', () => ({
         async saveKet(absensiId, value) {
@@ -1117,6 +1139,17 @@ document.addEventListener('alpine:init', () => {
             }
         }
     }));
+
+    // ===== GLOBAL CLIPBOARD STATE =====
+    window.dinasClipboard = null; // { userId, tanggal, kegiatanId, manualLabel, keterangan, kode, warna, kegiatanNama, isManual }
+
+    // Escape → batalkan mode clipboard
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && window.dinasClipboard) {
+            window.dinasClipboard = null;
+            window.dispatchEvent(new CustomEvent('dinas-clipboard-clear'));
+        }
+    });
 
     Alpine.data('dinasCell', (config) => ({
         userId: config.userId,
@@ -1139,6 +1172,11 @@ document.addEventListener('alpine:init', () => {
         spjCheckedByName: config.spjCheckedByName || '',
         spjCheckedAt: config.spjCheckedAt || '',
 
+        // Long press state
+        _pressTimer: null,
+        _isPasting: false,   // sedang dalam mode paste (muncul konfirmasi)
+        _pasteConfirm: false, // apakah konfirmasi timpa sedang tampil di sel ini
+
         init() {
             // Listen update dari modal SPJ atau kegiatan picker
             window.addEventListener('dinas-cell-update', (e) => {
@@ -1156,9 +1194,27 @@ document.addEventListener('alpine:init', () => {
                     if ('spjCheckedAt' in d) this.spjCheckedAt = d.spjCheckedAt;
                 }
             });
+            // Tutup konfirmasi saat clipboard dibatalkan
+            window.addEventListener('dinas-clipboard-clear', () => {
+                this._pasteConfirm = false;
+            });
+        },
+
+        // Apakah sel ini sedang di-clipboard (sumber)
+        get isCopied() {
+            const cb = window.dinasClipboard;
+            return cb && Number(cb.userId) === Number(this.userId) && cb.tanggal === this.tanggal;
+        },
+
+        // Apakah clipboard aktif (ada sesuatu yang di-copy)
+        get clipboardActive() {
+            return !!window.dinasClipboard;
         },
 
         cellTitle() {
+            if (window.dinasClipboard && !this.isCopied) {
+                return 'Klik untuk tempel: ' + window.dinasClipboard.kode;
+            }
             const parts = [];
             if (this.absensiTitle) parts.push(this.absensiTitle);
             if (this.kode) {
@@ -1172,7 +1228,65 @@ document.addEventListener('alpine:init', () => {
             return parts.join(' · ') || 'Klik untuk pilih kegiatan';
         },
 
+        // ===== LONG PRESS =====
+        onPressStart(e) {
+            // Hanya aktif jika sel punya data (ada kode/kegiatan)
+            if (!(this.kegiatanId || this.isManual)) return;
+            // Jangan trigger long press saat mode paste aktif
+            if (window.dinasClipboard) return;
+
+            this._pressTimer = setTimeout(() => {
+                this._pressTimer = null;
+                // Salin ke clipboard
+                window.dinasClipboard = {
+                    userId:      this.userId,
+                    tanggal:     this.tanggal,
+                    kegiatanId:  this.kegiatanId,
+                    manualLabel: this.manualLabel,
+                    keterangan:  this.keterangan,
+                    kode:        this.kode,
+                    warna:       this.warna,
+                    kegiatanNama: this.kegiatanNama,
+                    isManual:    this.isManual,
+                };
+                // Trigger reactivity Alpine pada semua sel
+                window.dispatchEvent(new CustomEvent('dinas-clipboard-set'));
+                // Vibrasi pendek jika tersedia (mobile)
+                if (navigator.vibrate) navigator.vibrate(60);
+            }, 600);
+        },
+
+        onPressEnd() {
+            if (this._pressTimer) {
+                clearTimeout(this._pressTimer);
+                this._pressTimer = null;
+            }
+        },
+
+        // ===== HANDLE CLICK (normal + paste mode) =====
         handleClick() {
+            // --- MODE PASTE AKTIF ---
+            if (window.dinasClipboard) {
+                const cb = window.dinasClipboard;
+
+                // Klik pada sel sumber sendiri → batalkan mode copy
+                if (Number(cb.userId) === Number(this.userId) && cb.tanggal === this.tanggal) {
+                    this.clearClipboard();
+                    return;
+                }
+
+                // Sel tujuan sudah ada data → tampilkan konfirmasi
+                if (this.kegiatanId || this.isManual) {
+                    this._pasteConfirm = true;
+                    return;
+                }
+
+                // Sel tujuan kosong → paste langsung
+                this.doPaste(false);
+                return;
+            }
+
+            // --- MODE NORMAL ---
             // Admin/Kepala + ada kegiatan/manual → buka modal SPJ
             if (this.isAdmin && (this.kegiatanId || this.isManual)) {
                 this.$dispatch('open-spj-modal', {
@@ -1206,6 +1320,52 @@ document.addEventListener('alpine:init', () => {
                     cellRect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, height: rect.height },
                 }
             }));
+        },
+
+        // ===== PASTE =====
+        async doPaste(timpa) {
+            const cb = window.dinasClipboard;
+            if (!cb) return;
+
+            this._pasteConfirm = false;
+
+            try {
+                const res = await window.api.post('/perjalanan-dinas', {
+                    user_id:      this.userId,
+                    tanggal:      this.tanggal,
+                    kegiatan_id:  cb.kegiatanId || null,
+                    manual_label: cb.manualLabel || null,
+                    keterangan:   cb.keterangan || null,
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Update sel via event (tanpa reload)
+                    window.dispatchEvent(new CustomEvent('dinas-cell-update', { detail: {
+                        userId:      this.userId,
+                        tanggal:     this.tanggal,
+                        kegiatanId:  data.data?.kegiatan_id ?? cb.kegiatanId,
+                        kode:        data.data?.kode ?? cb.kode,
+                        warna:       data.data?.warna ?? cb.warna,
+                        kegiatanNama: data.data?.kegiatan_nama ?? cb.kegiatanNama,
+                        isManual:    cb.isManual,
+                        manualLabel: cb.manualLabel || '',
+                        spjChecked:  false,
+                        spjCatatan:  '',
+                        spjCheckedByName: '',
+                        spjCheckedAt: '',
+                    }}));
+                    window.toast('Ditempel: ' + cb.kode, 'success');
+                } else {
+                    window.toast(data.message || 'Gagal menempel', 'error');
+                }
+            } catch(e) {
+                window.toast('Terjadi kesalahan', 'error');
+            }
+        },
+
+        clearClipboard() {
+            window.dinasClipboard = null;
+            window.dispatchEvent(new CustomEvent('dinas-clipboard-clear'));
         },
     }));
 
@@ -1935,4 +2095,5 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 </script>
+
 @endsection

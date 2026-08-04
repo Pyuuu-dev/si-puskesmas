@@ -12,29 +12,96 @@
         </div>
 
         {{-- Month/Year Selector --}}
-        <div class="flex flex-wrap items-center gap-2">
-            <form method="GET" action="{{ route('absensi') }}" class="flex items-center gap-2">
-                <select name="bulan" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    @foreach(range(1, 12) as $b)
-                        <option value="{{ $b }}" {{ $bulan == $b ? 'selected' : '' }}>
-                            {{ \Carbon\Carbon::createFromDate(null, $b, 1)->locale('id')->isoFormat('MMMM') }}
-                        </option>
-                    @endforeach
-                </select>
-                <select name="tahun" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    @foreach(range(now()->year - 5, now()->year + 5) as $y)
-                        <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
-                    @endforeach
-                </select>
-                <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
-                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+        <form method="GET" action="{{ route('absensi') }}" class="flex flex-wrap items-center gap-2">
+            <select name="bulan" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                @foreach(range(1, 12) as $b)
+                    <option value="{{ $b }}" {{ $bulan == $b ? 'selected' : '' }}>
+                        {{ \Carbon\Carbon::createFromDate(null, $b, 1)->locale('id')->isoFormat('MMMM') }}
+                    </option>
+                @endforeach
+            </select>
+            <select name="tahun" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                @foreach(range(now()->year - 5, now()->year + 5) as $y)
+                    <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
+                @endforeach
+            </select>
+
+            {{-- Pegawai selector — search-based multi-select (Alpine reactive) --}}
+            <div class="relative" x-data="pegawaiFilter({{ json_encode($selectedPegawai) }}, {{ json_encode($allPegawai->map(fn($u) => ['id' => $u->id, 'name' => $u->name])->values()) }})">
+                {{-- Hidden inputs for form submission --}}
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="pegawai[]" :value="id">
+                </template>
+
+                <button type="button" @click="open = !open"
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                    <svg class="w-4 h-4 mr-1.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                     </svg>
-                    Tampilkan
+                    Pegawai (<span x-text="selected.length === 0 ? 'Semua' : selected.length + ' dipilih'"></span>)
+                    <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
                 </button>
-            </form>
+
+                <div x-show="open" @click.away="open = false" x-transition x-cloak
+                     class="absolute top-full left-0 mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    {{-- Search --}}
+                    <div class="p-2 border-b border-gray-100 bg-white">
+                        <div class="relative">
+                            <svg class="w-4 h-4 absolute left-2 top-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+                            <input type="text" x-model="search" placeholder="Cari nama pegawai..."
+                                   class="w-full text-sm border-gray-200 rounded pl-8 pr-2 py-1.5 focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    {{-- Selected chips --}}
+                    <div x-show="selected.length > 0" class="px-2 py-2 border-b border-gray-100 bg-indigo-50/50">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[10px] font-medium text-indigo-700 uppercase tracking-wide">Dipilih (<span x-text="selected.length"></span>)</span>
+                            <button type="button" @click="reset()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium">Reset</button>
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                            <template x-for="id in selected" :key="id">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-600 text-white text-[11px] rounded-full">
+                                    <span x-text="nameOf(id)"></span>
+                                    <button type="button" @click="remove(id)" class="hover:bg-indigo-700 rounded-full w-3.5 h-3.5 flex items-center justify-center leading-none text-[10px]">×</button>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+
+                    {{-- List --}}
+                    <div class="max-h-56 overflow-y-auto">
+                        <template x-for="p in filtered()" :key="p.id">
+                            <button type="button" @click="toggle(p.id)"
+                                    class="w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                                    :class="isSelected(p.id) ? 'bg-indigo-50/60' : ''">
+                                <span class="w-4 h-4 rounded border flex items-center justify-center shrink-0"
+                                      :class="isSelected(p.id) ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'">
+                                    <svg x-show="isSelected(p.id)" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                                </span>
+                                <span class="truncate" x-text="p.name"></span>
+                            </button>
+                        </template>
+                        <div x-show="filtered().length === 0" class="px-3 py-3 text-xs text-gray-400 text-center">
+                            Tidak ada pegawai cocok
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+                <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+                Tampilkan
+            </button>
+            @if(!empty($selectedPegawai))
+            <a href="{{ route('absensi', ['bulan' => $bulan, 'tahun' => $tahun]) }}" class="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
+                Reset
+            </a>
+            @endif
             {{-- Export TL/PSW (hidden - not released yet) --}}
-        </div>
+        </form>
     </div>
 
     {{-- Legend --}}
