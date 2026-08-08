@@ -372,27 +372,42 @@ class PerjalananDinasController extends Controller
 
         $tanggal = date('Y-m-d', strtotime($validated['tanggal']));
 
-        $deleted = PerjalananDinas::where('user_id', $validated['user_id'])
+        // Ambil data beserta relasi kegiatan SEBELUM dihapus
+        $records = PerjalananDinas::where('user_id', $validated['user_id'])
             ->whereDate('tanggal', $tanggal)
-            ->delete();
+            ->with('kegiatan')
+            ->get();
 
-        if ($deleted > 0) {
+        if ($records->isNotEmpty()) {
             $userTarget = User::find($validated['user_id']);
             $namaUser = $userTarget?->name ?? "User#{$validated['user_id']}";
+
+            // Bangun list nama kegiatan (relasi atau manual_label)
+            $namaKegiatan = $records
+                ->map(fn($r) => $r->kegiatan?->nama ?? $r->manual_label ?? 'Tanpa Nama')
+                ->unique()
+                ->values()
+                ->all();
+
+            $records->toQuery()->delete();
+
             ActivityLogger::log(
                 event: 'delete',
                 module: 'perjalanan_dinas',
-                description: "Menghapus perjalanan dinas {$namaUser} pada {$tanggal}",
+                description: "Menghapus perjalanan dinas {$namaUser} pada {$tanggal}: "
+                    . implode(', ', $namaKegiatan),
                 properties: [
-                    'user_id' => $validated['user_id'],
-                    'tanggal' => $tanggal,
+                    'user_id'  => $validated['user_id'],
+                    'tanggal'  => $tanggal,
+                    'kegiatan' => $namaKegiatan,
+                    'jumlah'   => count($namaKegiatan),
                 ],
             );
         }
 
         return response()->json([
             'success' => true,
-            'message' => $deleted > 0 ? 'Data berhasil dihapus.' : 'Data tidak ditemukan.',
+            'message' => $records->isNotEmpty() ? 'Data berhasil dihapus.' : 'Data tidak ditemukan.',
         ]);
     }
 
